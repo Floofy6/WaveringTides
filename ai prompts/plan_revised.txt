@@ -1,0 +1,951 @@
+# Melvor Idle Replica: Detailed Implementation Guide
+
+## 1. Domain Model Implementation Details
+
+### Player Entity with Experience Formula
+
+```typescript
+export class Player {
+  // Core properties as defined in the document
+  
+  // Helper methods for player progression
+  calculateTotalCombatLevel(): number {
+    const attack = this.skills[SKILL_IDS.ATTACK].level;
+    const strength = this.skills[SKILL_IDS.STRENGTH].level;
+    const defence = this.skills[SKILL_IDS.DEFENCE].level;
+    const hitpoints = this.skills[SKILL_IDS.HITPOINTS].level;
+    
+    return Math.floor((attack + strength + defence + hitpoints) / 4);
+  }
+  
+  getTotalSkillLevel(): number {
+    return Object.values(this.skills).reduce((total, skill) => total + skill.level, 0);
+  }
+}
+```
+
+### Enhanced Skill XP Formula
+
+```typescript
+export class SkillService {
+  // Improved XP calculation with diminishing returns at higher levels
+  calculateXpGain(skill: Skill, elapsedTime: number): number {
+    // Base XP per action
+    const baseXp = skill.xpPerAction;
+    
+    // Actions per second (adjust for different skills)
+    const actionsPerSecond = this.getActionsPerSecond(skill);
+    
+    // Calculate actions in elapsed time
+    const actions = (elapsedTime / 1000) * actionsPerSecond;
+    
+    // Apply level scaling (slower at higher levels)
+    const levelScaling = 1 + ((skill.level - 1) * 0.01);
+    
+    return Math.floor(baseXp * actions * levelScaling);
+  }
+  
+  getActionsPerSecond(skill: Skill): number {
+    // Different skills have different action speeds
+    switch(skill.id) {
+      case SKILL_IDS.WOODCUTTING: return 0.8;
+      case SKILL_IDS.FISHING: return 0.6;
+      case SKILL_IDS.MINING: return 0.7;
+      // Other skills with appropriate rates
+      default: return 0.5;
+    }
+  }
+}
+```
+
+## 2. Core Game Loop Architecture
+
+### Game Tick System
+
+```typescript
+export class GameLoop {
+  private readonly TICK_RATE = 100; // milliseconds
+  private gameService: GameService;
+  private intervalId: NodeJS.Timeout | null = null;
+  
+  constructor(gameService: GameService) {
+    this.gameService = gameService;
+  }
+  
+  start() {
+    if (this.intervalId) return;
+    
+    let lastTick = Date.now();
+    
+    this.intervalId = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - lastTick;
+      lastTick = now;
+      
+      this.gameService.update('player1', elapsed);
+    }, this.TICK_RATE);
+  }
+  
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+  }
+}
+```
+
+### Resource Generation with Variability
+
+```typescript
+export class ResourceGenerator {
+  generateResources(skill: Skill, elapsedTime: number): Item[] {
+    const resources: Item[] = [];
+    const actionTime = this.getActionTime(skill);
+    const totalActions = Math.floor(elapsedTime / actionTime);
+    
+    for (let i = 0; i < totalActions; i++) {
+      const items = this.rollForResources(skill);
+      resources.push(...items);
+    }
+    
+    return resources;
+  }
+  
+  rollForResources(skill: Skill): Item[] {
+    const result: Item[] = [];
+    
+    switch (skill.id) {
+      case SKILL_IDS.WOODCUTTING:
+        if (Math.random() < this.getSuccessRate(skill)) {
+          result.push({ ...ITEMS[ITEM_IDS.LOGS], quantity: 1 });
+          
+          // Chance for rare drops (bird nests, etc.)
+          if (Math.random() < 0.01) {
+            result.push({ ...ITEMS[ITEM_IDS.BIRD_NEST], quantity: 1 });
+          }
+        }
+        break;
+      // Other skills
+    }
+    
+    return result;
+  }
+  
+  getSuccessRate(skill: Skill): number {
+    // Higher levels = higher success rate
+    return Math.min(0.3 + (skill.level * 0.007), 0.95);
+  }
+  
+  getActionTime(skill: Skill): number {
+    // Base time per action in milliseconds
+    const baseTime = 3000;
+    // Reduction based on level (up to 50% faster at level 99)
+    const levelReduction = (skill.level - 1) * 15;
+    return Math.max(baseTime - levelReduction, 1500);
+  }
+}
+```
+
+## 3. Skill Implementation Details
+
+### Woodcutting Skill
+
+```typescript
+class WoodcuttingSkill extends Skill {
+  constructor() {
+    super(SKILL_IDS.WOODCUTTING, 'Woodcutting', 10);
+    this.unlocks = {
+      1: { name: 'Regular Trees', itemId: ITEM_IDS.LOGS },
+      15: { name: 'Oak Trees', itemId: ITEM_IDS.OAK_LOGS },
+      30: { name: 'Willow Trees', itemId: ITEM_IDS.WILLOW_LOGS },
+      45: { name: 'Maple Trees', itemId: ITEM_IDS.MAPLE_LOGS },
+      60: { name: 'Yew Trees', itemId: ITEM_IDS.YEW_LOGS },
+      75: { name: 'Magic Trees', itemId: ITEM_IDS.MAGIC_LOGS },
+    };
+  }
+  
+  // Tree-specific data
+  treeData = {
+    [ITEM_IDS.LOGS]: { xp: 10, time: 3000, difficulty: 1 },
+    [ITEM_IDS.OAK_LOGS]: { xp: 15, time: 4000, difficulty: 15 },
+    // Other trees
+  };
+  
+  canCutTree(treeId: string): boolean {
+    return this.level >= this.treeData[treeId].difficulty;
+  }
+}
+```
+
+### Fishing Implementation
+
+```typescript
+export class FishingService {
+  rollForFish(player: Player, fishingSpot: FishingSpot): Item[] {
+    const fishingSkill = player.skills[SKILL_IDS.FISHING];
+    const fishingLevel = fishingSkill.level;
+    
+    // Check if player meets level requirements
+    if (fishingLevel < fishingSpot.requiredLevel) {
+      return [];
+    }
+    
+    const catches: Item[] = [];
+    const baseSuccessRate = 0.3 + (fishingLevel * 0.005);
+    
+    // Roll for each fish in the spot based on weighted probability
+    const totalWeight = fishingSpot.fish.reduce((sum, fish) => sum + fish.weight, 0);
+    
+    if (Math.random() < baseSuccessRate) {
+      // Determine which fish is caught
+      const roll = Math.random() * totalWeight;
+      let cumulativeWeight = 0;
+      
+      for (const fish of fishingSpot.fish) {
+        cumulativeWeight += fish.weight;
+        if (roll <= cumulativeWeight) {
+          catches.push({ ...ITEMS[fish.itemId], quantity: 1 });
+          
+          // Add XP
+          fishingSkill.addXp(fish.xp);
+          break;
+        }
+      }
+    }
+    
+    return catches;
+  }
+}
+```
+
+## 4. Combat System Implementation
+
+### Enhanced Combat System
+
+```typescript
+export class CombatService {
+  // Combat tick function - called each combat interval
+  processCombatTick(player: Player): void {
+    if (!player.combat.isFighting || !player.combat.currentEnemy) {
+      return;
+    }
+    
+    const enemy = player.combat.currentEnemy;
+    
+    // Calculate attack interval based on weapon speed
+    const playerAttackTime = this.getAttackInterval(player);
+    const enemyAttackTime = enemy.attackSpeed;
+    
+    // Update attack timers
+    player.combat.playerAttackTimer += COMBAT_TICK_MS;
+    player.combat.enemyAttackTimer += COMBAT_TICK_MS;
+    
+    // Process player attack
+    if (player.combat.playerAttackTimer >= playerAttackTime) {
+      player.combat.playerAttackTimer -= playerAttackTime;
+      this.processPlayerAttack(player, enemy);
+    }
+    
+    // Process enemy attack if enemy is still alive
+    if (enemy.health > 0 && player.combat.enemyAttackTimer >= enemyAttackTime) {
+      player.combat.enemyAttackTimer -= enemyAttackTime;
+      this.processEnemyAttack(player, enemy);
+    }
+    
+    // Check if enemy is defeated
+    if (enemy.health <= 0) {
+      this.handleEnemyDefeat(player, enemy);
+    }
+    
+    // Check if player is defeated
+    if (player.getCurrentHitpoints() <= 0) {
+      this.handlePlayerDefeat(player);
+    }
+  }
+  
+  processPlayerAttack(player: Player, enemy: Enemy): void {
+    // Calculate hit chance
+    const accuracy = this.calculatePlayerAccuracy(player);
+    const enemyEvasion = this.calculateEnemyEvasion(enemy);
+    
+    const hitChance = accuracy / (accuracy + enemyEvasion);
+    
+    if (Math.random() <= hitChance) {
+      // Calculate damage
+      const damage = this.calculatePlayerDamage(player);
+      
+      // Apply damage to enemy
+      enemy.health = Math.max(0, enemy.health - damage);
+      
+      // Award combat XP
+      player.addXpToSkill(SKILL_IDS.ATTACK, damage * 4);
+      player.addXpToSkill(SKILL_IDS.STRENGTH, damage * 4);
+      player.addXpToSkill(SKILL_IDS.HITPOINTS, damage * 1.33);
+    } else {
+      // Miss - no damage
+    }
+  }
+  
+  calculatePlayerDamage(player: Player): number {
+    const strengthLevel = player.skills[SKILL_IDS.STRENGTH].level;
+    const weaponDamage = player.equipment.weapon?.stats?.strengthBonus || 1;
+    
+    // Base damage calculation
+    const maxHit = Math.floor(1.3 + (strengthLevel / 10) + (weaponDamage / 5));
+    
+    // Random roll between 0 and max hit
+    return Math.floor(Math.random() * (maxHit + 1));
+  }
+  
+  getAttackInterval(player: Player): number {
+    // Base attack interval in milliseconds
+    const baseInterval = 2400;
+    
+    // Get weapon speed modifier (if any)
+    const weapon = player.equipment.weapon;
+    const speedModifier = weapon?.stats?.speedBonus || 0;
+    
+    return baseInterval - (speedModifier * 200);
+  }
+}
+```
+
+### Enemy AI Enhancement
+
+```typescript
+export class Enemy {
+  // Enemy properties
+  id: string;
+  name: string;
+  level: number;
+  attack: number;
+  defense: number;
+  health: number;
+  maxHealth: number;
+  attackSpeed: number;
+  attackStyle: 'melee' | 'ranged' | 'magic';
+  lootTable: LootTableEntry[];
+  
+  // Special attacks
+  specialAttacks: SpecialAttack[];
+  specialAttackChance: number;
+  
+  useSpecialAttack(player: Player): number {
+    // Roll for special attack
+    if (this.specialAttacks.length > 0 && Math.random() < this.specialAttackChance) {
+      // Choose a random special attack
+      const specialAttack = this.specialAttacks[Math.floor(Math.random() * this.specialAttacks.length)];
+      return specialAttack.execute(this, player);
+    }
+    
+    // Regular attack
+    return this.calculateDamage(player);
+  }
+}
+```
+
+## 5. UI Implementation
+
+### React Component Structure
+
+```typescript
+// Parent component structure
+const GameUI: React.FC = () => {
+  return (
+    <div className="game-container">
+      <Header />
+      <div className="game-content">
+        <Sidebar />
+        <MainContent />
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+// Main content with tab system
+const MainContent: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('skills');
+  
+  return (
+    <div className="main-content">
+      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      
+      {activeTab === 'skills' && <SkillsPanel />}
+      {activeTab === 'combat' && <CombatPanel />}
+      {activeTab === 'bank' && <BankPanel />}
+      {activeTab === 'shop' && <ShopPanel />}
+    </div>
+  );
+};
+```
+
+### SkillPanel Component with Progress Visualization
+
+```typescript
+const SkillsPanel: React.FC<{ skills: Record<string, Skill> }> = ({ skills }) => {
+  return (
+    <div className="skills-panel">
+      {Object.values(skills).map(skill => (
+        <SkillCard key={skill.id} skill={skill} />
+      ))}
+    </div>
+  );
+};
+
+const SkillCard: React.FC<{ skill: Skill }> = ({ skill }) => {
+  const { level, xp } = skill;
+  const nextLevelXp = getXpRequiredForLevel(level + 1);
+  const currentLevelXp = getXpRequiredForLevel(level);
+  const progress = ((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100;
+  
+  return (
+    <div className="skill-card">
+      <div className="skill-header">
+        <h3>{skill.name}</h3>
+        <span className="skill-level">Level {level}</span>
+      </div>
+      
+      <div className="skill-progress">
+        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+      </div>
+      
+      <div className="skill-info">
+        <span>{xp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
+        <span>{progress.toFixed(1)}%</span>
+      </div>
+      
+      <SkillActions skill={skill} />
+    </div>
+  );
+};
+```
+
+### Combat UI with Real-time Updates
+
+```typescript
+const CombatPanel: React.FC<{ player: Player, enemy?: Enemy }> = ({ player, enemy }) => {
+  const [combatLog, setCombatLog] = useState<string[]>([]);
+  
+  // Add combat log entry
+  const addLogEntry = (message: string) => {
+    setCombatLog(prev => [message, ...prev].slice(0, 50)); // Keep last 50 messages
+  };
+  
+  return (
+    <div className="combat-panel">
+      <div className="combat-area">
+        <PlayerCombatCard player={player} />
+        
+        {enemy && (
+          <EnemyCombatCard enemy={enemy} />
+        )}
+      </div>
+      
+      <div className="combat-controls">
+        <button 
+          disabled={player.combat.isFighting}
+          onClick={() => startCombat(player, 'goblin')}
+        >
+          Fight Goblin
+        </button>
+        
+        {/* Other enemy options */}
+        
+        <button 
+          disabled={!player.combat.isFighting}
+          onClick={() => stopCombat(player)}
+        >
+          Run Away
+        </button>
+      </div>
+      
+      <div className="combat-log">
+        {combatLog.map((entry, index) => (
+          <div key={index} className="log-entry">{entry}</div>
+        ))}
+      </div>
+    </div>
+  );
+};
+```
+
+## 6. Enhanced Game State Management
+
+### Offline Progress Calculation
+
+```typescript
+export class OfflineProgressService {
+  applyOfflineProgress(player: Player): Player {
+    const now = Date.now();
+    const lastUpdate = player.lastUpdate;
+    const elapsedTime = now - lastUpdate;
+    
+    // Cap offline progress (max 24 hours)
+    const maxOfflineTime = 24 * 60 * 60 * 1000;
+    const effectiveElapsedTime = Math.min(elapsedTime, maxOfflineTime);
+    
+    console.log(`Applying offline progress for ${effectiveElapsedTime}ms`);
+    
+    // Apply skill progress
+    Object.values(player.skills).forEach(skill => {
+      if (skill.isActive) {
+        // Slightly reduced rate for offline progress (80%)
+        const offlineRate = 0.8;
+        const skillService = new SkillService(new InMemoryItemRepository());
+        
+        // Calculate XP gain
+        const xpGain = skillService.calculateXpGain(skill, effectiveElapsedTime) * offlineRate;
+        skill.addXp(xpGain);
+        
+        // Generate resources
+        this.generateOfflineResources(player, skill, effectiveElapsedTime * offlineRate);
+      }
+    });
+    
+    // Combat is not processed offline in MVP
+    player.combat.isFighting = false;
+    player.combat.currentEnemy = undefined;
+    
+    // Update timestamp
+    player.lastUpdate = now;
+    
+    return player;
+  }
+  
+  generateOfflineResources(player: Player, skill: Skill, elapsedTime: number): void {
+    // Similar to regular resource generation, but simplified and capped
+    const resourceGenerator = new ResourceGenerator();
+    const resources = resourceGenerator.generateResources(skill, elapsedTime);
+    
+    // Add resources to inventory
+    resources.forEach(item => {
+      player.inventory.addItem(item);
+    });
+  }
+}
+```
+
+### Autosave Mechanism
+
+```typescript
+export class AutosaveService {
+  private readonly SAVE_INTERVAL = 60000; // 1 minute
+  private playerRepository: PlayerRepository;
+  private intervalId: NodeJS.Timeout | null = null;
+  
+  constructor(playerRepository: PlayerRepository) {
+    this.playerRepository = playerRepository;
+  }
+  
+  startAutosave(playerId: string) {
+    if (this.intervalId) return;
+    
+    this.intervalId = setInterval(async () => {
+      try {
+        const player = await this.playerRepository.getById(playerId);
+        if (player) {
+          await this.playerRepository.save(player);
+          console.log(`Autosaved for player ${playerId}`);
+        }
+      } catch (error) {
+        console.error('Autosave failed:', error);
+      }
+    }, this.SAVE_INTERVAL);
+  }
+  
+  stopAutosave() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+  }
+}
+```
+
+## 7. MongoDB Implementation Details
+
+```typescript
+// MongoDB connection setup
+export async function connectToMongoDB(): Promise<mongoose.Connection> {
+  try {
+    await mongoose.connect('mongodb://localhost:27017/melvor-replica', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      useFindAndModify: false,
+      useCreateIndex: true
+    });
+    
+    console.log('Connected to MongoDB');
+    return mongoose.connection;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
+}
+
+// Player mapper for converting between domain and persistence models
+export class PlayerMapper {
+  toDomain(playerDoc: any): Player {
+    const player = new Player(playerDoc.id);
+    player.gold = playerDoc.gold;
+    player.lastUpdate = playerDoc.lastUpdate;
+    
+    // Map skills
+    const skills: Record<string, Skill> = {};
+    playerDoc.skills.forEach((skillDoc: any, skillId: string) => {
+      const skill = new Skill(
+        skillId, 
+        skillDoc.name, 
+        skillDoc.xpPerAction
+      );
+      skill.level = skillDoc.level;
+      skill.xp = skillDoc.xp;
+      skill.isActive = skillDoc.isActive;
+      skills[skillId] = skill;
+    });
+    player.skills = skills;
+    
+    // Map inventory, equipment, etc.
+    // ...
+    
+    return player;
+  }
+  
+  toPersistence(player: Player): any {
+    return {
+      id: player.id,
+      gold: player.gold,
+      lastUpdate: player.lastUpdate,
+      skills: player.skills,
+      inventory: Array.from(player.inventory.getItems().entries()),
+      equipment: player.equipment,
+      combat: player.combat
+    };
+  }
+}
+```
+
+## 8. Skill Crafting System Implementation
+
+```typescript
+export class CraftingSystem {
+  craftItem(player: Player, recipe: CraftingRecipe): boolean {
+    // Check skill level requirements
+    const skillId = recipe.skillId;
+    const requiredLevel = recipe.level;
+    
+    if (player.getSkillLevel(skillId) < requiredLevel) {
+      console.log(`Skill level too low. Need ${requiredLevel} ${skillId}`);
+      return false;
+    }
+    
+    // Check ingredients
+    for (const [ingredientId, quantity] of Object.entries(recipe.requirements)) {
+      if (player.inventory.getItemQuantity(ingredientId) < quantity) {
+        console.log(`Not enough ${ingredientId}. Have ${player.inventory.getItemQuantity(ingredientId)}, need ${quantity}`);
+        return false;
+      }
+    }
+    
+    // Remove ingredients
+    for (const [ingredientId, quantity] of Object.entries(recipe.requirements)) {
+      player.inventory.removeItem(ingredientId, quantity);
+    }
+    
+    // Add crafted item
+    player.inventory.addItem({
+      id: recipe.itemId,
+      name: ITEMS[recipe.itemId].name,
+      quantity: recipe.outputQuantity || 1,
+      type: ITEMS[recipe.itemId].type
+    });
+    
+    // Award XP
+    player.addXpToSkill(skillId, recipe.xpReward);
+    
+    return true;
+  }
+  
+  getAvailableRecipes(player: Player): CraftingRecipe[] {
+    // Return all recipes that player has the level for
+    return CRAFTING_RECIPES.filter(recipe => 
+      player.getSkillLevel(recipe.skillId) >= recipe.level
+    );
+  }
+}
+```
+
+## Implementation Guide for Melvor Idle Replica
+
+Here's a detailed guide to implement the core mechanics of a Melvor Idle replica:
+
+### 1. Game Engine Core
+
+The foundation of your idle game is a reliable game loop that processes player actions and updates game state even when inactive:
+
+```typescript
+// Core game loop with precise timing
+export class GameLoop {
+  private readonly TICK_RATE = 100; // milliseconds
+  private gameService: GameService;
+  private intervalId: number | null = null;
+  
+  start() {
+    if (this.intervalId) return;
+    
+    let lastTick = Date.now();
+    
+    this.intervalId = window.setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - lastTick;
+      lastTick = now;
+      
+      this.gameService.update('player1', elapsed);
+    }, this.TICK_RATE);
+  }
+}
+```
+
+This cycle handles progression of all active skills, combat, and generates resources based on elapsed time.
+
+### 2. Skill System Implementation
+
+Skills are the fundamental progression system:
+
+- Each skill advances through 99 levels with increasing XP requirements
+- Skills generate resources at rates based on player level
+- Implement the XP formula with diminishing returns at higher levels
+
+```typescript
+export class Skill {
+  addXp(xp: number): void {
+    this.xp += xp;
+    this.updateLevel();
+  }
+
+  updateLevel(): void {
+    while (this.level < 99 && this.xp >= this.getXpRequiredForLevel(this.level + 1)) {
+      this.level++;
+    }
+  }
+
+  getXpRequiredForLevel(level: number): number {
+    // Exponential formula creates increasing difficulty curve
+    let points = 0;
+    let output = 0;
+    
+    for (let lvl = 1; lvl <= level; lvl++) {
+      points += Math.floor(lvl + 300 * Math.pow(2, lvl / 7));
+      if (lvl >= 2) {
+        output = Math.floor(points / 4);
+      }
+    }
+    
+    return output;
+  }
+}
+```
+
+### 3. Resource Generation
+
+Implement a probability-based resource generation system:
+
+```typescript
+rollForResources(skill: Skill): Item[] {
+  const result: Item[] = [];
+  
+  // Success rate improves with level
+  const successRate = Math.min(0.3 + (skill.level * 0.007), 0.95);
+  
+  if (Math.random() <= successRate) {
+    switch (skill.id) {
+      case SKILL_IDS.WOODCUTTING:
+        result.push({ ...ITEMS[ITEM_IDS.LOGS], quantity: 1 });
+        
+        // Small chance for rare drops (1%)
+        if (Math.random() < 0.01) {
+          result.push({ ...ITEMS[ITEM_IDS.BIRD_NEST], quantity: 1 });
+        }
+        break;
+        
+      // Other skills...
+    }
+  }
+  
+  return result;
+}
+```
+
+### 4. Combat System
+
+Create a turn-based combat system with attack intervals and damage calculations:
+
+```typescript
+processCombatTick(player: Player): void {
+  if (!player.combat.isFighting || !player.combat.currentEnemy) return;
+  
+  const enemy = player.combat.currentEnemy;
+  
+  // Update attack timers and process attacks when ready
+  player.combat.playerAttackTimer += COMBAT_TICK_MS;
+  player.combat.enemyAttackTimer += COMBAT_TICK_MS;
+  
+  if (player.combat.playerAttackTimer >= this.getPlayerAttackSpeed(player)) {
+    player.combat.playerAttackTimer = 0;
+    this.processPlayerAttack(player, enemy);
+  }
+  
+  if (enemy.health > 0 && player.combat.enemyAttackTimer >= enemy.attackSpeed) {
+    player.combat.enemyAttackTimer = 0;
+    this.processEnemyAttack(player, enemy);
+  }
+  
+  // Handle victory/defeat conditions
+}
+```
+
+Implement a loot table system for enemy drops:
+
+```typescript
+generateLoot(enemy: Enemy): Item[] {
+  const loot: Item[] = [];
+  
+  for (const lootEntry of enemy.lootTable) {
+    if (Math.random() <= lootEntry.chance) {
+      const item = {
+        ...ITEMS[lootEntry.itemId],
+        quantity: lootEntry.quantity
+      };
+      loot.push(item);
+    }
+  }
+  
+  return loot;
+}
+```
+
+### 5. Crafting and Economy
+
+Implement a crafting system that connects resource gathering skills:
+
+```typescript
+async craft(player: Player, recipeId: string): Promise<void> {
+  const canCraft = await this.canCraft(player, recipeId);
+  if (!canCraft) {
+    throw new Error(`Cannot craft recipe ${recipeId}`);
+  }
+
+  const recipe = CRAFTING_RECIPES[recipeId];
+  
+  // Remove resources
+  for (const [resourceId, quantity] of Object.entries(recipe.requirements)) {
+    player.inventory.removeItem(resourceId, quantity);
+  }
+
+  // Add crafted item
+  const outputItem = { ...ITEMS[recipe.itemId], quantity: recipe.outputQuantity || 1 };
+  player.inventory.addItem(outputItem);
+
+  // Award XP
+  player.addXpToSkill(recipe.skillId, recipe.xpReward);
+}
+```
+
+### 6. React UI Components
+
+Create intuitive UI components for player interaction:
+
+- SkillsPanel: Display skill levels and progress bars
+- CombatPanel: Show real-time combat stats and enemy selection
+- InventoryPanel: Manage acquired resources
+- ShopPanel: Buy and sell items
+
+Use progress bars and clear visual feedback:
+
+```typescript
+const SkillCard: React.FC<{ skill: Skill }> = ({ skill, onStart, onStop }) => {
+  // Calculate XP progress
+  const currentLevelXp = getXpForLevel(skill.level);
+  const nextLevelXp = getXpForLevel(skill.level + 1);
+  const xpForNextLevel = nextLevelXp - currentLevelXp;
+  const xpProgress = skill.xp - currentLevelXp;
+  const progressPercent = (xpProgress / xpForNextLevel) * 100;
+
+  return (
+    <div className={`skill-card ${skill.isActive ? 'active' : ''}`}>
+      <div className="skill-header">
+        <h3>{skill.name}</h3>
+        <span className="skill-level">Level {skill.level}</span>
+      </div>
+      
+      <div className="skill-progress">
+        <div className="progress-bar" style={{ width: `${progressPercent}%` }}></div>
+        <span className="progress-text">{Math.floor(progressPercent)}%</span>
+      </div>
+      
+      {/* Action buttons */}
+    </div>
+  );
+};
+```
+
+### 7. Persistence and Offline Progress
+
+Use MongoDB for data persistence:
+
+```typescript
+// MongoDB Player repository
+export class MongoPlayerRepository implements PlayerRepository {
+  async getById(playerId: string): Promise<Player | undefined> {
+    const playerDoc = await PlayerModel.findOne({ id: playerId });
+    if (!playerDoc) return undefined;
+    return this.playerMapper.toDomain(playerDoc);
+  }
+
+  async save(player: Player): Promise<void> {
+    const playerData = this.playerMapper.toPersistence(player);
+    await PlayerModel.findOneAndUpdate(
+      { id: player.id },
+      playerData,
+      { upsert: true, new: true }
+    );
+  }
+}
+```
+
+Implement offline progress calculation to process accumulated time when player returns:
+
+```typescript
+// Calculate offline progress when player logs back in
+applyOfflineProgress(player: Player): Player {
+  const now = Date.now();
+  const elapsedTime = now - player.lastUpdate;
+  
+  // Cap offline progress (max 24 hours)
+  const maxOfflineTime = 24 * 60 * 60 * 1000;
+  const effectiveElapsedTime = Math.min(elapsedTime, maxOfflineTime);
+  
+  // Apply skill progress at a slightly reduced rate
+  Object.values(player.skills).forEach(skill => {
+    if (skill.isActive) {
+      const offlineRate = 0.8; // 80% efficiency when offline
+      const xpGain = calculateXpGain(skill, effectiveElapsedTime) * offlineRate;
+      skill.addXp(xpGain);
+      generateOfflineResources(player, skill, effectiveElapsedTime * offlineRate);
+    }
+  });
+  
+  return player;
+}
+```
+
+### 8. Game Balance Considerations
+
+- Create a satisfying progression curve—early levels should feel quick, later levels more challenging
+- Balance resource generation rates with crafting requirements
+- Design combat encounters with appropriate difficulty scaling
+- Implement skill connections (e.g., Mining→Smithing→Combat) to create meaningful progression paths
+
+For the MVP, focus on implementing 3-4 core skills (like Woodcutting, Fishing, Mining, and Smithing) with clear connections between them, basic combat, and a simple shop system. This provides the essential game loop while keeping scope manageable.

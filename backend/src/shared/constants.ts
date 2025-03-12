@@ -1,0 +1,140 @@
+export const ITEM_IDS = {
+  LOGS: 'logs',
+  RAW_FISH: 'raw_fish',
+  ORE: 'ore',
+  BRONZE_BAR: 'bronze_bar',
+  BRONZE_SWORD: 'bronze_sword',
+  COOKED_FISH: 'cooked_fish',
+  LEATHER_ARMOR: 'leather_armor',
+};
+
+export const SKILL_IDS = {
+  WOODCUTTING: 'woodcutting',
+  FISHING: 'fishing',
+  MINING: 'mining',
+  FIREMAKING: 'firemaking',
+  COOKING: 'cooking',
+  SMITHING: 'smithing',
+  ATTACK: 'attack',
+  STRENGTH: 'strength',
+  DEFENCE: 'defence',
+  HITPOINTS: 'hitpoints',
+};
+
+export const ENEMY_IDS = {
+  GOBLIN: 'goblin',
+  RAT: 'rat',
+  BANDIT: 'bandit',
+};
+
+export const ITEMS = {
+  [ITEM_IDS.LOGS]: {
+    id: ITEM_IDS.LOGS,
+    name: 'Logs',
+    type: 'resource',
+    sellPrice: 2,
+  },
+  [ITEM_IDS.RAW_FISH]: {
+    id: ITEM_IDS.RAW_FISH,
+    name: 'Raw Fish',
+    type: 'resource',
+    sellPrice: 3,
+  },
+  [ITEM_IDS.ORE]: {
+    id: ITEM_IDS.ORE,
+    name: 'Copper Ore',
+    type: 'resource',
+    sellPrice: 4,
+  },
+  [ITEM_IDS.BRONZE_BAR]: {
+    id: ITEM_IDS.BRONZE_BAR,
+    name: 'Bronze Bar',
+    type: 'resource',
+    sellPrice: 10,
+    craftingRecipe: {
+      itemId: ITEM_IDS.BRONZE_BAR,
+      requirements: { [ITEM_IDS.ORE]: 2 },
+      skillId: SKILL_IDS.SMITHING,
+      level: 1,
+    },
+  },
+  [ITEM_IDS.BRONZE_SWORD]: {
+    id: ITEM_IDS.BRONZE_SWORD,
+    name: 'Bronze Sword',
+    type: 'equipment',
+    slot: 'weapon',
+    sellPrice: 25,
+    buyPrice: 50,
+    stats: {
+      attackBonus: 4,
+      strengthBonus: 2,
+    },
+    craftingRecipe: {
+      itemId: ITEM_IDS.BRONZE_SWORD,
+      requirements: { [ITEM_IDS.BRONZE_BAR]: 2 },
+      skillId: SKILL_IDS.SMITHING,
+      level: 5,
+    },
+  },
+  [ITEM_IDS.COOKED_FISH]: {
+    id: ITEM_IDS.COOKED_FISH,
+    name: 'Cooked Fish',
+    type: 'resource',
+    sellPrice: 5,
+    craftingRecipe: {
+      itemId: ITEM_IDS.COOKED_FISH,
+      requirements: { [ITEM_IDS.RAW_FISH]: 1 },
+      skillId: SKILL_IDS.COOKING,
+      level: 1,
+    },
+  },
+  [ITEM_IDS.LEATHER_ARMOR]: {
+    id: ITEM_IDS.LEATHER_ARMOR,
+    name: 'Leather Armor',
+    type: 'equipment',
+    slot: 'armor',
+    sellPrice: 30,
+    buyPrice: 60,
+    stats: {
+      defenseBonus: 5,
+    },
+  },
+};
+
+export const ENEMIES = {
+  [ENEMY_IDS.GOBLIN]: {
+    id: ENEMY_IDS.GOBLIN,
+    name: 'Goblin',
+    attack: 3,
+    defense: 2,
+    health: 10,
+    maxHealth: 10,
+    lootTable: [
+      { itemId: ITEM_IDS.LOGS, quantity: 1, chance: 0.5 },
+      { itemId: ITEM_IDS.BRONZE_BAR, quantity: 1, chance: 0.2 },
+    ],
+  },
+  [ENEMY_IDS.RAT]: {
+    id: ENEMY_IDS.RAT,
+    name: 'Giant Rat',
+    attack: 2,
+    defense: 1,
+    health: 5,
+    maxHealth: 5,
+    lootTable: [
+      { itemId: ITEM_IDS.RAW_FISH, quantity: 1, chance: 0.3 },
+    ],
+  },
+  [ENEMY_IDS.BANDIT]: {
+    id: ENEMY_IDS.BANDIT,
+    name: 'Bandit',
+    attack: 5,
+    defense: 4,
+    health: 15,
+    maxHealth: 15,
+    lootTable: [
+      { itemId: ITEM_IDS.BRONZE_SWORD, quantity: 1, chance: 0.1 },
+      { itemId: ITEM_IDS.LEATHER_ARMOR, quantity: 1, chance: 0.1 },
+    ],
+  },
+};
