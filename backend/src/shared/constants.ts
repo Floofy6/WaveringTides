@@ -31,26 +31,30 @@ export const ITEMS = {
   [ITEM_IDS.LOGS]: {
     id: ITEM_IDS.LOGS,
     name: 'Logs',
-    type: 'resource',
+    type: 'resource' as const,
     sellPrice: 2,
+    quantity: 1,
   },
   [ITEM_IDS.RAW_FISH]: {
     id: ITEM_IDS.RAW_FISH,
     name: 'Raw Fish',
-    type: 'resource',
+    type: 'resource' as const,
     sellPrice: 3,
+    quantity: 1,
   },
   [ITEM_IDS.ORE]: {
     id: ITEM_IDS.ORE,
     name: 'Copper Ore',
-    type: 'resource',
+    type: 'resource' as const,
     sellPrice: 4,
+    quantity: 1,
   },
   [ITEM_IDS.BRONZE_BAR]: {
     id: ITEM_IDS.BRONZE_BAR,
     name: 'Bronze Bar',
-    type: 'resource',
+    type: 'resource' as const,
     sellPrice: 10,
+    quantity: 1,
     craftingRecipe: {
       itemId: ITEM_IDS.BRONZE_BAR,
       requirements: { [ITEM_IDS.ORE]: 2 },
@@ -61,10 +65,11 @@ export const ITEMS = {
   [ITEM_IDS.BRONZE_SWORD]: {
     id: ITEM_IDS.BRONZE_SWORD,
     name: 'Bronze Sword',
-    type: 'equipment',
-    slot: 'weapon',
+    type: 'equipment' as const,
+    slot: 'weapon' as const,
     sellPrice: 25,
     buyPrice: 50,
+    quantity: 1,
     stats: {
       attackBonus: 4,
       strengthBonus: 2,
@@ -79,8 +84,9 @@ export const ITEMS = {
   [ITEM_IDS.COOKED_FISH]: {
     id: ITEM_IDS.COOKED_FISH,
     name: 'Cooked Fish',
-    type: 'resource',
+    type: 'resource' as const,
     sellPrice: 5,
+    quantity: 1,
     craftingRecipe: {
       itemId: ITEM_IDS.COOKED_FISH,
       requirements: { [ITEM_IDS.RAW_FISH]: 1 },
@@ -91,10 +97,11 @@ export const ITEMS = {
   [ITEM_IDS.LEATHER_ARMOR]: {
     id: ITEM_IDS.LEATHER_ARMOR,
     name: 'Leather Armor',
-    type: 'equipment',
-    slot: 'armor',
+    type: 'equipment' as const,
+    slot: 'armor' as const,
     sellPrice: 30,
     buyPrice: 60,
+    quantity: 1,
     stats: {
       defenseBonus: 5,
     },

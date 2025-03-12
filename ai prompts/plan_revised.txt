@@ -1,903 +1,1104 @@
-# Melvor Idle Replica: Detailed Implementation Guide
+# Melvor Idle Replica - Detailed Development Plan
 
-## 1. Domain Model Implementation Details
+## Project Vision
 
-### Player Entity with Experience Formula
+The goal is to create a single-player, web-based idle/incremental game that faithfully replicates the core mechanics and feeling of Melvor Idle. The game should provide:
 
-```typescript
-export class Player {
-  // Core properties as defined in the document
-  
-  // Helper methods for player progression
-  calculateTotalCombatLevel(): number {
-    const attack = this.skills[SKILL_IDS.ATTACK].level;
-    const strength = this.skills[SKILL_IDS.STRENGTH].level;
-    const defence = this.skills[SKILL_IDS.DEFENCE].level;
-    const hitpoints = this.skills[SKILL_IDS.HITPOINTS].level;
-    
-    return Math.floor((attack + strength + defence + hitpoints) / 4);
-  }
-  
-  getTotalSkillLevel(): number {
-    return Object.values(this.skills).reduce((total, skill) => total + skill.level, 0);
-  }
-}
+- **Rewarding Experience**: Every action, even passive ones, contributes to visible progress with satisfying level-ups and item acquisition
+- **Clear Understanding**: An intuitive UI with tooltips, clear labels, and progress bars to help players understand game mechanics
+- **Balanced Challenge**: Challenging but not overly grindy, especially in early stages, with a focus on accessible core gameplay loops
+- **Meaningful Connections**: Skills should be interconnected (e.g., Mining provides ore for Smithing, Woodcutting provides logs for Firemaking)
+
+## Core Features
+
+### Skill System
+- Skills have levels (1-99) and experience points
+- Both combat and non-combat skills
+- Active and passive training methods
+- Experience required increases with level (custom formula)
+- Future: Mastery system for deeper progression
+
+### Bank/Inventory System
+- Storage for gathered resources and crafted items
+- MVP: Extended inventory
+- Later: Dedicated UI with tabs, searching, auto-deposit
+
+### Combat System
+- Stats-based combat (Attack, Strength, Defense, Hitpoints)
+- Enemy encounters with health, attack, defense attributes
+- Loot tables with probability-based drops
+- MVP: Basic melee combat
+- Later: Ranged, Magic, special attacks, status effects
+
+### Shop System
+- Buy and sell items using gold currency
+- Hardcoded items for MVP
+- Dynamic pricing in later phases
+
+## Architecture (Domain-Driven Design)
+
+### Domain Layer (Core Game Logic)
+- **Entities**:
+  - `Player`: Central entity containing game state
+  - `Skill`: Experience, level, and progression
+  - `Item`/`Resource`: Game items and resources
+  - `Enemy`: Combat opponents with attributes
+  - `LootTableEntry`: Probability-based loot drops
+
+- **Value Objects**:
+  - `Level`: Player's skill level
+  - `Experience`: Accumulated XP
+  - `GoldAmount`: In-game currency
+
+- **Aggregates**:
+  - Player (root) containing Skills, Inventory, Equipment
+  - Enemy containing LootTable
+
+- **Domain Services**:
+  - `SkillService`: Handles skill progression and resource gathering
+  - `CombatService`: Manages combat calculations and encounters
+  - `CraftingService`: Transforms resources into items
+  - `ShopService`: Handles buying/selling transactions
+
+- **Repository Interfaces**:
+  - `PlayerRepository`: Player data access
+  - `EnemyRepository`: Enemy data access
+  - `ItemRepository`: Item/resource data access
+
+### Application Layer (Use Case Coordination)
+- **Application Services**:
+  - `GameService`: Central game loop and state updates
+  - `PlayerService`: Player-initiated actions
+
+### Infrastructure Layer (Technical Implementation)
+- **Repository Implementations**:
+  - `InMemoryPlayerRepository`: Stores player data in memory (MVP)
+  - `InMemoryEnemyRepository`: Stores enemy data in memory (MVP)
+  - `InMemoryItemRepository`: Stores item data in memory (MVP)
+  - `InMemoryShopRepository`: Stores shop inventory in memory (MVP)
+  - Later: MongoDB implementations
+
+- **Database**:
+  - In-memory for MVP
+  - MongoDB for persistence later
+
+### Presentation Layer (User Interface)
+- **API (REST)**:
+  - `PlayerController`: Handles HTTP requests/responses
+  - API routes for all game actions
+
+- **UI (React)**:
+  - `SkillList`: Displays skills and training controls
+  - `Inventory`: Shows player's items
+  - `CombatPanel`: Displays combat information
+  - `Shop`: Interface for buying/selling
+  - `Equipment`: Shows equipped items
+
+### Shared Layer (Cross-Layer)
+- Type definitions for entities
+- Constants for item/skill IDs and properties
+
+## Technology Stack
+
+### Frontend
+- **React**: Component-based UI library
+- **TypeScript**: Static typing for better maintainability
+- **axios**: HTTP client for API requests
+- **CSS/styled-components**: For styling (basic CSS for MVP)
+
+### Backend
+- **Node.js**: JavaScript runtime
+- **Express.js**: Web framework for API endpoints
+- **TypeScript**: Static typing for backend code
+- **nodemon**: Auto-restart during development
+
+### Database
+- **In-Memory**: For MVP (JavaScript objects)
+- **MongoDB**: For persistence in later phases
+
+## Phased Development
+
+### Phase 1: Minimum Viable Product (MVP)
+
+#### Step 1: Project Setup and Core Domain (3-5 Days)
+
+##### Task 1.1: Create Project Folders (1 hour)
+```
+melvor-replica/
+├── domain/
+├── application/
+├── infrastructure/
+├── presentation/
+└── shared/
 ```
 
-### Enhanced Skill XP Formula
+##### Task 1.2: Initialize Frontend and Backend Projects (2 hours)
+- Frontend setup with create-react-app and TypeScript
+- Backend setup with Node.js, Express, and TypeScript
+- Install necessary dependencies (axios, cors, etc.)
 
-```typescript
-export class SkillService {
-  // Improved XP calculation with diminishing returns at higher levels
-  calculateXpGain(skill: Skill, elapsedTime: number): number {
-    // Base XP per action
-    const baseXp = skill.xpPerAction;
-    
-    // Actions per second (adjust for different skills)
-    const actionsPerSecond = this.getActionsPerSecond(skill);
-    
-    // Calculate actions in elapsed time
-    const actions = (elapsedTime / 1000) * actionsPerSecond;
-    
-    // Apply level scaling (slower at higher levels)
-    const levelScaling = 1 + ((skill.level - 1) * 0.01);
-    
-    return Math.floor(baseXp * actions * levelScaling);
-  }
-  
-  getActionsPerSecond(skill: Skill): number {
-    // Different skills have different action speeds
-    switch(skill.id) {
-      case SKILL_IDS.WOODCUTTING: return 0.8;
-      case SKILL_IDS.FISHING: return 0.6;
-      case SKILL_IDS.MINING: return 0.7;
-      // Other skills with appropriate rates
-      default: return 0.5;
-    }
-  }
-}
-```
+##### Task 1.3: Set up Build/Run Scripts (1 hour)
+- Configure package.json scripts for development and production
 
-## 2. Core Game Loop Architecture
-
-### Game Tick System
-
-```typescript
-export class GameLoop {
-  private readonly TICK_RATE = 100; // milliseconds
-  private gameService: GameService;
-  private intervalId: NodeJS.Timeout | null = null;
-  
-  constructor(gameService: GameService) {
-    this.gameService = gameService;
-  }
-  
-  start() {
-    if (this.intervalId) return;
-    
-    let lastTick = Date.now();
-    
-    this.intervalId = setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - lastTick;
-      lastTick = now;
-      
-      this.gameService.update('player1', elapsed);
-    }, this.TICK_RATE);
-  }
-  
-  stop() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-  }
-}
-```
-
-### Resource Generation with Variability
-
-```typescript
-export class ResourceGenerator {
-  generateResources(skill: Skill, elapsedTime: number): Item[] {
-    const resources: Item[] = [];
-    const actionTime = this.getActionTime(skill);
-    const totalActions = Math.floor(elapsedTime / actionTime);
-    
-    for (let i = 0; i < totalActions; i++) {
-      const items = this.rollForResources(skill);
-      resources.push(...items);
-    }
-    
-    return resources;
-  }
-  
-  rollForResources(skill: Skill): Item[] {
-    const result: Item[] = [];
-    
-    switch (skill.id) {
-      case SKILL_IDS.WOODCUTTING:
-        if (Math.random() < this.getSuccessRate(skill)) {
-          result.push({ ...ITEMS[ITEM_IDS.LOGS], quantity: 1 });
-          
-          // Chance for rare drops (bird nests, etc.)
-          if (Math.random() < 0.01) {
-            result.push({ ...ITEMS[ITEM_IDS.BIRD_NEST], quantity: 1 });
-          }
-        }
-        break;
-      // Other skills
-    }
-    
-    return result;
-  }
-  
-  getSuccessRate(skill: Skill): number {
-    // Higher levels = higher success rate
-    return Math.min(0.3 + (skill.level * 0.007), 0.95);
-  }
-  
-  getActionTime(skill: Skill): number {
-    // Base time per action in milliseconds
-    const baseTime = 3000;
-    // Reduction based on level (up to 50% faster at level 99)
-    const levelReduction = (skill.level - 1) * 15;
-    return Math.max(baseTime - levelReduction, 1500);
-  }
-}
-```
-
-## 3. Skill Implementation Details
-
-### Woodcutting Skill
-
-```typescript
-class WoodcuttingSkill extends Skill {
-  constructor() {
-    super(SKILL_IDS.WOODCUTTING, 'Woodcutting', 10);
-    this.unlocks = {
-      1: { name: 'Regular Trees', itemId: ITEM_IDS.LOGS },
-      15: { name: 'Oak Trees', itemId: ITEM_IDS.OAK_LOGS },
-      30: { name: 'Willow Trees', itemId: ITEM_IDS.WILLOW_LOGS },
-      45: { name: 'Maple Trees', itemId: ITEM_IDS.MAPLE_LOGS },
-      60: { name: 'Yew Trees', itemId: ITEM_IDS.YEW_LOGS },
-      75: { name: 'Magic Trees', itemId: ITEM_IDS.MAGIC_LOGS },
+##### Task 1.4: Define Core Data Structures (4 hours)
+- Create `shared/types.ts` with interfaces:
+  ```typescript
+  export interface Player {
+    id: string;
+    gold: number;
+    lastUpdate: number;
+    skills: { [skillId: string]: Skill };
+    inventory: { [itemId: string]: Item };
+    equipment: {
+      weapon?: Item;
+      armor?: Item;
+    };
+    combat: {
+      currentEnemy?: Enemy;
+      isFighting: boolean;
     };
   }
-  
-  // Tree-specific data
-  treeData = {
-    [ITEM_IDS.LOGS]: { xp: 10, time: 3000, difficulty: 1 },
-    [ITEM_IDS.OAK_LOGS]: { xp: 15, time: 4000, difficulty: 15 },
-    // Other trees
+
+  export interface Skill {
+    id: string;
+    name: string;
+    level: number;
+    xp: number;
+    xpPerAction: number;
+    isActive: boolean;
+  }
+
+  export interface Item {
+    id: string;
+    name: string;
+    quantity: number;
+    type: 'resource' | 'equipment';
+    sellPrice?: number;
+    stats?: {
+      attackBonus?: number;
+      strengthBonus?: number;
+      defenseBonus?: number;
+    };
+    slot?: 'weapon' | 'armor';
+    craftingRecipe?: CraftingRecipe;
+  }
+
+  export interface Enemy {
+    id: string;
+    name: string;
+    attack: number;
+    defense: number;
+    health: number;
+    lootTable: LootTableEntry[];
+  }
+
+  export interface LootTableEntry {
+    resourceId: string;
+    quantity: number;
+    chance: number;
+  }
+
+  export interface CraftingRecipe {
+    itemId: string;
+    requirements: { [resourceId: string]: number };
+    skillId: string;
+    level: number;
+  }
+  ```
+
+- Create `shared/constants.ts` with hardcoded values:
+  ```typescript
+  export const ITEM_IDS = {
+    LOGS: 'logs',
+    RAW_FISH: 'raw_fish',
+    ORE: 'ore',
+    BRONZE_BAR: 'bronze_bar',
+    BRONZE_SWORD: 'bronze_sword',
+    COOKED_FISH: 'cooked_fish',
   };
-  
-  canCutTree(treeId: string): boolean {
-    return this.level >= this.treeData[treeId].difficulty;
-  }
-}
-```
 
-### Fishing Implementation
+  export const SKILL_IDS = {
+    WOODCUTTING: 'woodcutting',
+    FISHING: 'fishing',
+    MINING: 'mining',
+    FIREMAKING: 'firemaking',
+    COOKING: 'cooking',
+    SMITHING: 'smithing',
+    ATTACK: 'attack',
+    STRENGTH: 'strength',
+    DEFENCE: 'defence',
+    HITPOINTS: 'hitpoints',
+  };
 
+  export const ITEMS = {
+    [ITEM_IDS.LOGS]: {
+      id: ITEM_IDS.LOGS,
+      name: 'Logs',
+      type: 'resource',
+      sellPrice: 2,
+    },
+    // Additional items defined here
+  };
+  ```
+
+##### Task 1.5: Create Initial Entity Files (1 hour)
+- Set up empty class files for core entities
+
+##### Task 1.6: Implement the Player Entity (3 hours)
 ```typescript
-export class FishingService {
-  rollForFish(player: Player, fishingSpot: FishingSpot): Item[] {
-    const fishingSkill = player.skills[SKILL_IDS.FISHING];
-    const fishingLevel = fishingSkill.level;
-    
-    // Check if player meets level requirements
-    if (fishingLevel < fishingSpot.requiredLevel) {
-      return [];
-    }
-    
-    const catches: Item[] = [];
-    const baseSuccessRate = 0.3 + (fishingLevel * 0.005);
-    
-    // Roll for each fish in the spot based on weighted probability
-    const totalWeight = fishingSpot.fish.reduce((sum, fish) => sum + fish.weight, 0);
-    
-    if (Math.random() < baseSuccessRate) {
-      // Determine which fish is caught
-      const roll = Math.random() * totalWeight;
-      let cumulativeWeight = 0;
-      
-      for (const fish of fishingSpot.fish) {
-        cumulativeWeight += fish.weight;
-        if (roll <= cumulativeWeight) {
-          catches.push({ ...ITEMS[fish.itemId], quantity: 1 });
-          
-          // Add XP
-          fishingSkill.addXp(fish.xp);
-          break;
-        }
-      }
-    }
-    
-    return catches;
+export class Player implements PlayerInterface {
+  id: string;
+  gold: GoldAmount;
+  lastUpdate: number;
+  skills: { [skillId: string]: Skill };
+  inventory: Inventory;
+  equipment: Equipment;
+  combat: { currentEnemy?: any; isFighting: boolean; };
+
+  constructor(id: string) {
+    this.id = id;
+    this.gold = 0;
+    this.lastUpdate = Date.now();
+    this.skills = {};
+    this.inventory = new Inventory();
+    this.equipment = new Equipment();
+    this.combat = { isFighting: false };
   }
-}
-```
 
-## 4. Combat System Implementation
-
-### Enhanced Combat System
-
-```typescript
-export class CombatService {
-  // Combat tick function - called each combat interval
-  processCombatTick(player: Player): void {
-    if (!player.combat.isFighting || !player.combat.currentEnemy) {
-      return;
-    }
-    
-    const enemy = player.combat.currentEnemy;
-    
-    // Calculate attack interval based on weapon speed
-    const playerAttackTime = this.getAttackInterval(player);
-    const enemyAttackTime = enemy.attackSpeed;
-    
-    // Update attack timers
-    player.combat.playerAttackTimer += COMBAT_TICK_MS;
-    player.combat.enemyAttackTimer += COMBAT_TICK_MS;
-    
-    // Process player attack
-    if (player.combat.playerAttackTimer >= playerAttackTime) {
-      player.combat.playerAttackTimer -= playerAttackTime;
-      this.processPlayerAttack(player, enemy);
-    }
-    
-    // Process enemy attack if enemy is still alive
-    if (enemy.health > 0 && player.combat.enemyAttackTimer >= enemyAttackTime) {
-      player.combat.enemyAttackTimer -= enemyAttackTime;
-      this.processEnemyAttack(player, enemy);
-    }
-    
-    // Check if enemy is defeated
-    if (enemy.health <= 0) {
-      this.handleEnemyDefeat(player, enemy);
-    }
-    
-    // Check if player is defeated
-    if (player.getCurrentHitpoints() <= 0) {
-      this.handlePlayerDefeat(player);
-    }
+  addGold(amount: GoldAmount) {
+    this.gold += amount;
   }
-  
-  processPlayerAttack(player: Player, enemy: Enemy): void {
-    // Calculate hit chance
-    const accuracy = this.calculatePlayerAccuracy(player);
-    const enemyEvasion = this.calculateEnemyEvasion(enemy);
-    
-    const hitChance = accuracy / (accuracy + enemyEvasion);
-    
-    if (Math.random() <= hitChance) {
-      // Calculate damage
-      const damage = this.calculatePlayerDamage(player);
-      
-      // Apply damage to enemy
-      enemy.health = Math.max(0, enemy.health - damage);
-      
-      // Award combat XP
-      player.addXpToSkill(SKILL_IDS.ATTACK, damage * 4);
-      player.addXpToSkill(SKILL_IDS.STRENGTH, damage * 4);
-      player.addXpToSkill(SKILL_IDS.HITPOINTS, damage * 1.33);
+
+  removeGold(amount: GoldAmount) {
+    if (this.gold >= amount) {
+      this.gold -= amount;
     } else {
-      // Miss - no damage
+      throw new Error("Insufficient gold");
     }
   }
-  
-  calculatePlayerDamage(player: Player): number {
-    const strengthLevel = player.skills[SKILL_IDS.STRENGTH].level;
-    const weaponDamage = player.equipment.weapon?.stats?.strengthBonus || 1;
-    
-    // Base damage calculation
-    const maxHit = Math.floor(1.3 + (strengthLevel / 10) + (weaponDamage / 5));
-    
-    // Random roll between 0 and max hit
-    return Math.floor(Math.random() * (maxHit + 1));
-  }
-  
-  getAttackInterval(player: Player): number {
-    // Base attack interval in milliseconds
-    const baseInterval = 2400;
-    
-    // Get weapon speed modifier (if any)
-    const weapon = player.equipment.weapon;
-    const speedModifier = weapon?.stats?.speedBonus || 0;
-    
-    return baseInterval - (speedModifier * 200);
-  }
+
+  // Additional methods for skills, inventory, etc.
 }
 ```
 
-### Enemy AI Enhancement
+##### Task 1.7: Implement Value Objects (1 hour)
+- Using type aliases for simple objects (Level, Experience, GoldAmount)
 
+##### Task 1.8: Implement the Skill Entity (2 hours)
 ```typescript
-export class Enemy {
-  // Enemy properties
+export class Skill implements SkillInterface {
   id: string;
   name: string;
   level: number;
-  attack: number;
-  defense: number;
-  health: number;
-  maxHealth: number;
-  attackSpeed: number;
-  attackStyle: 'melee' | 'ranged' | 'magic';
-  lootTable: LootTableEntry[];
-  
-  // Special attacks
-  specialAttacks: SpecialAttack[];
-  specialAttackChance: number;
-  
-  useSpecialAttack(player: Player): number {
-    // Roll for special attack
-    if (this.specialAttacks.length > 0 && Math.random() < this.specialAttackChance) {
-      // Choose a random special attack
-      const specialAttack = this.specialAttacks[Math.floor(Math.random() * this.specialAttacks.length)];
-      return specialAttack.execute(this, player);
-    }
-    
-    // Regular attack
-    return this.calculateDamage(player);
+  xp: number;
+  xpPerAction: number;
+  isActive: boolean;
+
+  constructor(id: string, name: string, xpPerAction: number) {
+    this.id = id;
+    this.name = name;
+    this.level = 1;
+    this.xp = 0;
+    this.xpPerAction = xpPerAction;
+    this.isActive = false;
   }
-}
-```
 
-## 5. UI Implementation
-
-### React Component Structure
-
-```typescript
-// Parent component structure
-const GameUI: React.FC = () => {
-  return (
-    <div className="game-container">
-      <Header />
-      <div className="game-content">
-        <Sidebar />
-        <MainContent />
-      </div>
-      <Footer />
-    </div>
-  );
-};
-
-// Main content with tab system
-const MainContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('skills');
-  
-  return (
-    <div className="main-content">
-      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-      
-      {activeTab === 'skills' && <SkillsPanel />}
-      {activeTab === 'combat' && <CombatPanel />}
-      {activeTab === 'bank' && <BankPanel />}
-      {activeTab === 'shop' && <ShopPanel />}
-    </div>
-  );
-};
-```
-
-### SkillPanel Component with Progress Visualization
-
-```typescript
-const SkillsPanel: React.FC<{ skills: Record<string, Skill> }> = ({ skills }) => {
-  return (
-    <div className="skills-panel">
-      {Object.values(skills).map(skill => (
-        <SkillCard key={skill.id} skill={skill} />
-      ))}
-    </div>
-  );
-};
-
-const SkillCard: React.FC<{ skill: Skill }> = ({ skill }) => {
-  const { level, xp } = skill;
-  const nextLevelXp = getXpRequiredForLevel(level + 1);
-  const currentLevelXp = getXpRequiredForLevel(level);
-  const progress = ((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100;
-  
-  return (
-    <div className="skill-card">
-      <div className="skill-header">
-        <h3>{skill.name}</h3>
-        <span className="skill-level">Level {level}</span>
-      </div>
-      
-      <div className="skill-progress">
-        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-      </div>
-      
-      <div className="skill-info">
-        <span>{xp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
-        <span>{progress.toFixed(1)}%</span>
-      </div>
-      
-      <SkillActions skill={skill} />
-    </div>
-  );
-};
-```
-
-### Combat UI with Real-time Updates
-
-```typescript
-const CombatPanel: React.FC<{ player: Player, enemy?: Enemy }> = ({ player, enemy }) => {
-  const [combatLog, setCombatLog] = useState<string[]>([]);
-  
-  // Add combat log entry
-  const addLogEntry = (message: string) => {
-    setCombatLog(prev => [message, ...prev].slice(0, 50)); // Keep last 50 messages
-  };
-  
-  return (
-    <div className="combat-panel">
-      <div className="combat-area">
-        <PlayerCombatCard player={player} />
-        
-        {enemy && (
-          <EnemyCombatCard enemy={enemy} />
-        )}
-      </div>
-      
-      <div className="combat-controls">
-        <button 
-          disabled={player.combat.isFighting}
-          onClick={() => startCombat(player, 'goblin')}
-        >
-          Fight Goblin
-        </button>
-        
-        {/* Other enemy options */}
-        
-        <button 
-          disabled={!player.combat.isFighting}
-          onClick={() => stopCombat(player)}
-        >
-          Run Away
-        </button>
-      </div>
-      
-      <div className="combat-log">
-        {combatLog.map((entry, index) => (
-          <div key={index} className="log-entry">{entry}</div>
-        ))}
-      </div>
-    </div>
-  );
-};
-```
-
-## 6. Enhanced Game State Management
-
-### Offline Progress Calculation
-
-```typescript
-export class OfflineProgressService {
-  applyOfflineProgress(player: Player): Player {
-    const now = Date.now();
-    const lastUpdate = player.lastUpdate;
-    const elapsedTime = now - lastUpdate;
-    
-    // Cap offline progress (max 24 hours)
-    const maxOfflineTime = 24 * 60 * 60 * 1000;
-    const effectiveElapsedTime = Math.min(elapsedTime, maxOfflineTime);
-    
-    console.log(`Applying offline progress for ${effectiveElapsedTime}ms`);
-    
-    // Apply skill progress
-    Object.values(player.skills).forEach(skill => {
-      if (skill.isActive) {
-        // Slightly reduced rate for offline progress (80%)
-        const offlineRate = 0.8;
-        const skillService = new SkillService(new InMemoryItemRepository());
-        
-        // Calculate XP gain
-        const xpGain = skillService.calculateXpGain(skill, effectiveElapsedTime) * offlineRate;
-        skill.addXp(xpGain);
-        
-        // Generate resources
-        this.generateOfflineResources(player, skill, effectiveElapsedTime * offlineRate);
-      }
-    });
-    
-    // Combat is not processed offline in MVP
-    player.combat.isFighting = false;
-    player.combat.currentEnemy = undefined;
-    
-    // Update timestamp
-    player.lastUpdate = now;
-    
-    return player;
-  }
-  
-  generateOfflineResources(player: Player, skill: Skill, elapsedTime: number): void {
-    // Similar to regular resource generation, but simplified and capped
-    const resourceGenerator = new ResourceGenerator();
-    const resources = resourceGenerator.generateResources(skill, elapsedTime);
-    
-    // Add resources to inventory
-    resources.forEach(item => {
-      player.inventory.addItem(item);
-    });
-  }
-}
-```
-
-### Autosave Mechanism
-
-```typescript
-export class AutosaveService {
-  private readonly SAVE_INTERVAL = 60000; // 1 minute
-  private playerRepository: PlayerRepository;
-  private intervalId: NodeJS.Timeout | null = null;
-  
-  constructor(playerRepository: PlayerRepository) {
-    this.playerRepository = playerRepository;
-  }
-  
-  startAutosave(playerId: string) {
-    if (this.intervalId) return;
-    
-    this.intervalId = setInterval(async () => {
-      try {
-        const player = await this.playerRepository.getById(playerId);
-        if (player) {
-          await this.playerRepository.save(player);
-          console.log(`Autosaved for player ${playerId}`);
-        }
-      } catch (error) {
-        console.error('Autosave failed:', error);
-      }
-    }, this.SAVE_INTERVAL);
-  }
-  
-  stopAutosave() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-  }
-}
-```
-
-## 7. MongoDB Implementation Details
-
-```typescript
-// MongoDB connection setup
-export async function connectToMongoDB(): Promise<mongoose.Connection> {
-  try {
-    await mongoose.connect('mongodb://localhost:27017/melvor-replica', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      useFindAndModify: false,
-      useCreateIndex: true
-    });
-    
-    console.log('Connected to MongoDB');
-    return mongoose.connection;
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
-  }
-}
-
-// Player mapper for converting between domain and persistence models
-export class PlayerMapper {
-  toDomain(playerDoc: any): Player {
-    const player = new Player(playerDoc.id);
-    player.gold = playerDoc.gold;
-    player.lastUpdate = playerDoc.lastUpdate;
-    
-    // Map skills
-    const skills: Record<string, Skill> = {};
-    playerDoc.skills.forEach((skillDoc: any, skillId: string) => {
-      const skill = new Skill(
-        skillId, 
-        skillDoc.name, 
-        skillDoc.xpPerAction
-      );
-      skill.level = skillDoc.level;
-      skill.xp = skillDoc.xp;
-      skill.isActive = skillDoc.isActive;
-      skills[skillId] = skill;
-    });
-    player.skills = skills;
-    
-    // Map inventory, equipment, etc.
-    // ...
-    
-    return player;
-  }
-  
-  toPersistence(player: Player): any {
-    return {
-      id: player.id,
-      gold: player.gold,
-      lastUpdate: player.lastUpdate,
-      skills: player.skills,
-      inventory: Array.from(player.inventory.getItems().entries()),
-      equipment: player.equipment,
-      combat: player.combat
-    };
-  }
-}
-```
-
-## 8. Skill Crafting System Implementation
-
-```typescript
-export class CraftingSystem {
-  craftItem(player: Player, recipe: CraftingRecipe): boolean {
-    // Check skill level requirements
-    const skillId = recipe.skillId;
-    const requiredLevel = recipe.level;
-    
-    if (player.getSkillLevel(skillId) < requiredLevel) {
-      console.log(`Skill level too low. Need ${requiredLevel} ${skillId}`);
-      return false;
-    }
-    
-    // Check ingredients
-    for (const [ingredientId, quantity] of Object.entries(recipe.requirements)) {
-      if (player.inventory.getItemQuantity(ingredientId) < quantity) {
-        console.log(`Not enough ${ingredientId}. Have ${player.inventory.getItemQuantity(ingredientId)}, need ${quantity}`);
-        return false;
-      }
-    }
-    
-    // Remove ingredients
-    for (const [ingredientId, quantity] of Object.entries(recipe.requirements)) {
-      player.inventory.removeItem(ingredientId, quantity);
-    }
-    
-    // Add crafted item
-    player.inventory.addItem({
-      id: recipe.itemId,
-      name: ITEMS[recipe.itemId].name,
-      quantity: recipe.outputQuantity || 1,
-      type: ITEMS[recipe.itemId].type
-    });
-    
-    // Award XP
-    player.addXpToSkill(skillId, recipe.xpReward);
-    
-    return true;
-  }
-  
-  getAvailableRecipes(player: Player): CraftingRecipe[] {
-    // Return all recipes that player has the level for
-    return CRAFTING_RECIPES.filter(recipe => 
-      player.getSkillLevel(recipe.skillId) >= recipe.level
-    );
-  }
-}
-```
-
-## Implementation Guide for Melvor Idle Replica
-
-Here's a detailed guide to implement the core mechanics of a Melvor Idle replica:
-
-### 1. Game Engine Core
-
-The foundation of your idle game is a reliable game loop that processes player actions and updates game state even when inactive:
-
-```typescript
-// Core game loop with precise timing
-export class GameLoop {
-  private readonly TICK_RATE = 100; // milliseconds
-  private gameService: GameService;
-  private intervalId: number | null = null;
-  
-  start() {
-    if (this.intervalId) return;
-    
-    let lastTick = Date.now();
-    
-    this.intervalId = window.setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - lastTick;
-      lastTick = now;
-      
-      this.gameService.update('player1', elapsed);
-    }, this.TICK_RATE);
-  }
-}
-```
-
-This cycle handles progression of all active skills, combat, and generates resources based on elapsed time.
-
-### 2. Skill System Implementation
-
-Skills are the fundamental progression system:
-
-- Each skill advances through 99 levels with increasing XP requirements
-- Skills generate resources at rates based on player level
-- Implement the XP formula with diminishing returns at higher levels
-
-```typescript
-export class Skill {
-  addXp(xp: number): void {
+  addXp(xp: number) {
     this.xp += xp;
-    this.updateLevel();
+    this.levelUp();
   }
 
-  updateLevel(): void {
-    while (this.level < 99 && this.xp >= this.getXpRequiredForLevel(this.level + 1)) {
+  levelUp() {
+    while (this.xp >= this.getXpRequiredForNextLevel()) {
       this.level++;
     }
   }
 
-  getXpRequiredForLevel(level: number): number {
-    // Exponential formula creates increasing difficulty curve
-    let points = 0;
-    let output = 0;
-    
-    for (let lvl = 1; lvl <= level; lvl++) {
-      points += Math.floor(lvl + 300 * Math.pow(2, lvl / 7));
-      if (lvl >= 2) {
-        output = Math.floor(points / 4);
+  getXpRequiredForNextLevel(): number {
+    return Math.floor(100 * (this.level ** 1.5));
+  }
+
+  activate() {
+    this.isActive = true;
+  }
+
+  deactivate() {
+    this.isActive = false;
+  }
+}
+```
+
+##### Task 1.9: Implement In-Memory Repositories (3 hours)
+- Create repository interfaces in `domain/repositories`
+- Implement in-memory versions in `infrastructure/persistence/inMemory`
+
+##### Task 1.10: Implement the Inventory Entity (2 hours)
+```typescript
+export class Inventory {
+  private items: Map<string, Item>;
+
+  constructor() {
+    this.items = new Map();
+  }
+
+  addItem(item: Item) {
+    if (this.items.has(item.id)) {
+      const existingItem = this.items.get(item.id)!;
+      existingItem.quantity += item.quantity;
+      this.items.set(item.id, existingItem);
+    } else {
+      const newItem = { ...item };
+      this.items.set(newItem.id, newItem);
+    }
+  }
+
+  removeItem(itemId: string, quantity: number) {
+    if (this.items.has(itemId)) {
+      const existingItem = this.items.get(itemId)!;
+      if (existingItem.quantity >= quantity) {
+        existingItem.quantity -= quantity;
+        if (existingItem.quantity === 0) {
+          this.items.delete(itemId);
+        } else {
+          this.items.set(itemId, existingItem);
+        }
+      } else {
+        throw new Error("Insufficient item quantity");
+      }
+    } else {
+      throw new Error("Item not found in inventory");
+    }
+  }
+
+  // Additional inventory methods
+}
+```
+
+##### Task 1.11: Implement the Equipment Entity (1 hour)
+```typescript
+export class Equipment {
+  weapon?: Item;
+  armor?: Item;
+
+  constructor() {
+    // Initialize with no equipment
+  }
+
+  equip(item: Item) {
+    if (item.type === 'equipment') {
+      switch (item.slot) {
+        case 'weapon':
+          this.weapon = item;
+          break;
+        case 'armor':
+          this.armor = item;
+          break;
+        default:
+          throw new Error("Invalid equipment slot");
+      }
+    } else {
+      throw new Error("Item is not equippable");
+    }
+  }
+
+  unequip(slot: 'weapon' | 'armor') {
+    if (slot === 'weapon') {
+      this.weapon = undefined;
+    } else if (slot === 'armor') {
+      this.armor = undefined;
+    }
+  }
+}
+```
+
+##### Task 1.12: Define Item Data (1 hour)
+- Populate `ITEMS` constant in `shared/constants.ts` with all MVP items
+
+#### Step 2: Idle Timer and Skill Progression (4-6 Days)
+
+##### Task 2.1: Implement Core Idle Timer (2 days)
+```typescript
+export class GameService {
+  private playerRepository: PlayerRepository;
+  private skillService: SkillService;
+  private combatService: CombatService;
+
+  constructor(playerRepository: PlayerRepository, skillService: SkillService, combatService: CombatService) {
+    this.playerRepository = playerRepository;
+    this.skillService = skillService;
+    this.combatService = combatService;
+  }
+
+  async update(playerId: string, elapsedTime: number): Promise<void> {
+    const player = await this.playerRepository.getById(playerId);
+    if (!player) {
+      throw new Error(`Player with ID ${playerId} not found`);
+    }
+
+    // Update active skills
+    for (const skillId in player.skills) {
+      if (player.skills.hasOwnProperty(skillId)) {
+        const skill = player.skills[skillId];
+        if (skill.isActive) {
+          this.skillService.applySkillAction(skill, player, elapsedTime);
+        }
       }
     }
+
+    // Handle combat
+    if (player.combat.isFighting && player.combat.currentEnemy) {
+      this.combatService.handleCombatRound(player, player.combat.currentEnemy, elapsedTime);
+    }
+
+    // Update timestamp and save
+    player.lastUpdate = Date.now();
+    await this.playerRepository.save(player);
+  }
+
+  async createPlayer(playerId: string): Promise<Player> {
+    const newPlayer = new Player(playerId);
     
-    return output;
+    // Initialize base skills
+    const woodcutting = new Skill(SKILL_IDS.WOODCUTTING, 'Woodcutting', 5);
+    const fishing = new Skill(SKILL_IDS.FISHING, 'Fishing', 7);
+    // ... other skills
+    
+    newPlayer.addSkill(woodcutting);
+    newPlayer.addSkill(fishing);
+    // ... add other skills
+    
+    await this.playerRepository.save(newPlayer);
+    return newPlayer;
   }
 }
 ```
 
-### 3. Resource Generation
-
-Implement a probability-based resource generation system:
-
+##### Task 2.2: Create SkillService (3 days)
 ```typescript
-rollForResources(skill: Skill): Item[] {
-  const result: Item[] = [];
-  
-  // Success rate improves with level
-  const successRate = Math.min(0.3 + (skill.level * 0.007), 0.95);
-  
-  if (Math.random() <= successRate) {
+export class SkillService {
+  private itemRepository: ItemRepository;
+
+  constructor(itemRepository: ItemRepository) {
+    this.itemRepository = itemRepository;
+  }
+
+  calculateXpGain(skill: Skill, elapsedTime: number): number {
+    return skill.xpPerAction * (skill.level / 10 + 1) * (elapsedTime / 1000);
+  }
+
+  applyXp(skill: Skill, xp: number) {
+    skill.addXp(xp);
+  }
+
+  applySkillAction(skill: Skill, player: Player, elapsedTime: number) {
+    const xpGained = this.calculateXpGain(skill, elapsedTime);
+    this.applyXp(skill, xpGained);
+
     switch (skill.id) {
       case SKILL_IDS.WOODCUTTING:
-        result.push({ ...ITEMS[ITEM_IDS.LOGS], quantity: 1 });
-        
-        // Small chance for rare drops (1%)
-        if (Math.random() < 0.01) {
-          result.push({ ...ITEMS[ITEM_IDS.BIRD_NEST], quantity: 1 });
-        }
+        this.applyWoodcutting(player, elapsedTime);
         break;
-        
-      // Other skills...
+      case SKILL_IDS.FISHING:
+        this.applyFishing(player, elapsedTime);
+        break;
+      // ... other skills
     }
   }
-  
-  return result;
+
+  applyWoodcutting(player: Player, elapsedTime: number) {
+    const logs = ITEMS[ITEM_IDS.LOGS];
+    const quantity = Math.floor(elapsedTime / 1000);
+    player.inventory.addItem({ ...logs, quantity: quantity });
+  }
+
+  // Methods for other skills (fishing, mining, etc.)
 }
 ```
 
-### 4. Combat System
+##### Task 2.3: Implement MVP Skills (1 day)
+- Implementation already covered in SkillService
 
-Create a turn-based combat system with attack intervals and damage calculations:
-
+##### Task 2.4: Implement Basic Crafting Logic (2 days)
 ```typescript
-processCombatTick(player: Player): void {
-  if (!player.combat.isFighting || !player.combat.currentEnemy) return;
-  
-  const enemy = player.combat.currentEnemy;
-  
-  // Update attack timers and process attacks when ready
-  player.combat.playerAttackTimer += COMBAT_TICK_MS;
-  player.combat.enemyAttackTimer += COMBAT_TICK_MS;
-  
-  if (player.combat.playerAttackTimer >= this.getPlayerAttackSpeed(player)) {
-    player.combat.playerAttackTimer = 0;
-    this.processPlayerAttack(player, enemy);
+export class CraftingService {
+  private itemRepository: ItemRepository;
+
+  constructor(itemRepository: ItemRepository) {
+    this.itemRepository = itemRepository;
   }
-  
-  if (enemy.health > 0 && player.combat.enemyAttackTimer >= enemy.attackSpeed) {
-    player.combat.enemyAttackTimer = 0;
-    this.processEnemyAttack(player, enemy);
+
+  async canCraft(player: Player, itemId: string): Promise<boolean> {
+    const item = await this.itemRepository.getById(itemId);
+    if (!item || !item.craftingRecipe) {
+      return false;
+    }
+
+    const recipe = item.craftingRecipe;
+
+    // Check skill level
+    if (player.getSkillLevel(recipe.skillId) < recipe.level) {
+      return false;
+    }
+
+    // Check resources
+    for (const resourceId in recipe.requirements) {
+      if (player.inventory.getItemQuantity(resourceId) < recipe.requirements[resourceId]) {
+        return false;
+      }
+    }
+
+    return true;
   }
-  
-  // Handle victory/defeat conditions
+
+  async craft(player: Player, itemId: string): Promise<void> {
+    const canCraft = await this.canCraft(player, itemId);
+    if (!canCraft) {
+      throw new Error(`Cannot craft item with ID ${itemId}`);
+    }
+
+    const item = await this.itemRepository.getById(itemId);
+    if (!item || !item.craftingRecipe) {
+      throw new Error("Error in crafting");
+    }
+    
+    const recipe = item.craftingRecipe;
+
+    // Remove resources
+    for (const resourceId in recipe.requirements) {
+      player.inventory.removeItem(resourceId, recipe.requirements[resourceId]);
+    }
+
+    // Add crafted item
+    const craftedItem = { ...item, quantity: 1 };
+    player.inventory.addItem(craftedItem);
+
+    // Award XP
+    player.addXpToSkill(recipe.skillId, 10);
+  }
 }
 ```
 
-Implement a loot table system for enemy drops:
+#### Step 3: Basic Combat (3-5 Days)
 
+##### Task 3.1: Create CombatService (2 days)
 ```typescript
-generateLoot(enemy: Enemy): Item[] {
-  const loot: Item[] = [];
-  
-  for (const lootEntry of enemy.lootTable) {
-    if (Math.random() <= lootEntry.chance) {
-      const item = {
-        ...ITEMS[lootEntry.itemId],
-        quantity: lootEntry.quantity
-      };
-      loot.push(item);
+export class CombatService {
+  private itemRepository: ItemRepository;
+
+  constructor(itemRepository: ItemRepository) {
+    this.itemRepository = itemRepository;
+  }
+
+  calculateDamage(attacker: Player | Enemy, defender: Player | Enemy): number {
+    const attackerStrength = attacker instanceof Player ? 
+      attacker.skills[SKILL_IDS.STRENGTH].level : attacker.attack;
+    const attackerAttack = attacker instanceof Player ? 
+      attacker.skills[SKILL_IDS.ATTACK].level : attacker.attack;
+    const defenderDefence = defender instanceof Player ? 
+      defender.skills[SKILL_IDS.DEFENCE].level : defender.defense;
+
+    const attackRoll = Math.floor(Math.random() * attackerAttack);
+    const defenceRoll = Math.floor(Math.random() * defenderDefence);
+
+    if (attackRoll > defenceRoll) {
+      return Math.max(0, Math.floor(Math.random() * attackerStrength));
+    }
+    return 0;
+  }
+
+  applyDamage(entity: Player | Enemy, damage: number) {
+    if (entity instanceof Player) {
+      entity.skills[SKILL_IDS.HITPOINTS].addXp(damage * 1.33);
+    } else {
+      entity.health -= damage;
     }
   }
-  
-  return loot;
+
+  handleCombatRound(player: Player, enemy: Enemy, elapsedTime: number) {
+    // Player attacks enemy
+    const playerDamage = this.calculateDamage(player, enemy);
+    this.applyDamage(enemy, playerDamage);
+    player.skills[SKILL_IDS.ATTACK].addXp(playerDamage * 4);
+    player.skills[SKILL_IDS.STRENGTH].addXp(playerDamage * 4);
+
+    // Check if enemy is defeated
+    if (enemy.health <= 0) {
+      this.handleEnemyDefeat(player, enemy);
+      return;
+    }
+
+    // Enemy attacks player
+    const enemyDamage = this.calculateDamage(enemy, player);
+    this.applyDamage(player, enemyDamage);
+
+    // Check if player is defeated
+    if (player.skills[SKILL_IDS.HITPOINTS].xp <= 0) {
+      this.handlePlayerDefeat(player);
+    }
+  }
+
+  handleEnemyDefeat(player: Player, enemy: Enemy) {
+    // Generate loot
+    for (const lootEntry of enemy.lootTable) {
+      if (Math.random() < lootEntry.chance) {
+        const item = { ...ITEMS[lootEntry.resourceId], quantity: lootEntry.quantity };
+        player.inventory.addItem(item);
+      }
+    }
+
+    // Reset combat state
+    player.combat.isFighting = false;
+    player.combat.currentEnemy = undefined;
+    enemy.health = 10; // Reset enemy health (TODO: use base health)
+  }
+
+  handlePlayerDefeat(player: Player) {
+    player.combat.isFighting = false;
+    player.combat.currentEnemy = undefined;
+    // Future: implement consequences for defeat
+  }
 }
 ```
 
-### 5. Crafting and Economy
+##### Task 3.2: Implement Combat Logic in GameService.update()
+- Already implemented in Task 2.1
 
-Implement a crafting system that connects resource gathering skills:
+##### Task 3.3: Create Goblin Enemy
+- Implemented in `InMemoryEnemyRepository`
 
+##### Task 3.4: Implement Basic Loot Generation
+- Implemented in `CombatService.handleEnemyDefeat`
+
+#### Step 4: Basic Bank and Shop (2-4 Days)
+
+##### Task 4.1: Inventory Implementation
+- Completed in Task 1.10
+
+##### Task 4.2: Bank Integration with Inventory (MVP)
+- No separate implementation for MVP
+
+##### Task 4.3: Create InMemoryShopRepository (1 hour)
 ```typescript
-async craft(player: Player, recipeId: string): Promise<void> {
-  const canCraft = await this.canCraft(player, recipeId);
-  if (!canCraft) {
-    throw new Error(`Cannot craft recipe ${recipeId}`);
+export class InMemoryShopRepository implements ItemRepository {
+  private shopItems: { [id: string]: Item } = {};
+
+  constructor() {
+    this.shopItems = {
+      [ITEM_IDS.BRONZE_SWORD]: { ...ITEMS[ITEM_IDS.BRONZE_SWORD], quantity: 10, buyPrice: 50 },
+      // Add other items
+    };
   }
 
-  const recipe = CRAFTING_RECIPES[recipeId];
-  
-  // Remove resources
-  for (const [resourceId, quantity] of Object.entries(recipe.requirements)) {
-    player.inventory.removeItem(resourceId, quantity);
+  async getById(itemId: string): Promise<Item | undefined> {
+    return this.shopItems[itemId];
   }
 
-  // Add crafted item
-  const outputItem = { ...ITEMS[recipe.itemId], quantity: recipe.outputQuantity || 1 };
-  player.inventory.addItem(outputItem);
-
-  // Award XP
-  player.addXpToSkill(recipe.skillId, recipe.xpReward);
+  async getAll(): Promise<Item[]> {
+    return Object.values(this.shopItems);
+  }
 }
 ```
 
-### 6. React UI Components
-
-Create intuitive UI components for player interaction:
-
-- SkillsPanel: Display skill levels and progress bars
-- CombatPanel: Show real-time combat stats and enemy selection
-- InventoryPanel: Manage acquired resources
-- ShopPanel: Buy and sell items
-
-Use progress bars and clear visual feedback:
-
+##### Task 4.4: Implement ShopService (2 days)
 ```typescript
-const SkillCard: React.FC<{ skill: Skill }> = ({ skill, onStart, onStop }) => {
-  // Calculate XP progress
-  const currentLevelXp = getXpForLevel(skill.level);
-  const nextLevelXp = getXpForLevel(skill.level + 1);
-  const xpForNextLevel = nextLevelXp - currentLevelXp;
-  const xpProgress = skill.xp - currentLevelXp;
-  const progressPercent = (xpProgress / xpForNextLevel) * 100;
+export class ShopService {
+  private itemRepository: ItemRepository;
+
+  constructor(itemRepository: ItemRepository) {
+    this.itemRepository = itemRepository;
+  }
+
+  async buyItem(player: Player, itemId: string, quantity: number): Promise<void> {
+    const shopItem = await this.itemRepository.getById(itemId);
+    if (!shopItem) {
+      throw new Error(`Item with ID ${itemId} not found in shop`);
+    }
+
+    if (!shopItem.buyPrice) {
+      throw new Error("Item is not buyable");
+    }
+
+    const totalPrice = shopItem.buyPrice * quantity;
+    if (player.gold < totalPrice) {
+      throw new Error("Insufficient gold");
+    }
+
+    player.removeGold(totalPrice);
+    const item = { ...shopItem, quantity: quantity };
+    player.inventory.addItem(item);
+  }
+
+  async sellItem(player: Player, itemId: string, quantity: number): Promise<void> {
+    if (!player.inventory.hasItem(itemId)) {
+      throw new Error("Item not in inventory");
+    }
+    
+    const item = await this.itemRepository.getById(itemId);
+    if (!item) {
+      throw new Error("Item id not found");
+    }
+    
+    if (!item.sellPrice) {
+      throw new Error("Item not sellable");
+    }
+    
+    if (player.inventory.getItemQuantity(itemId) < quantity) {
+      throw new Error("Not enough of item to sell");
+    }
+    
+    player.addGold(item.sellPrice * quantity);
+    player.inventory.removeItem(itemId, quantity);
+  }
+}
+```
+
+#### Step 5: API Endpoints (3-5 Days)
+
+##### Task 5.1: Create PlayerController (1 day)
+```typescript
+export class PlayerController {
+  private playerService: PlayerService;
+  private gameService: GameService;
+
+  constructor(playerService: PlayerService, gameService: GameService) {
+    this.playerService = playerService;
+    this.gameService = gameService;
+  }
+
+  async getGame(req: Request, res: Response) {
+    try {
+      const playerId = 'player1'; // Hardcoded for MVP
+      let player = await this.playerService.loadGame(playerId);
+      if (!player) {
+        player = await this.gameService.createPlayer(playerId);
+      }
+      const gameState = { player };
+      res.status(200).json(gameState);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  // Additional API endpoint methods
+}
+```
+
+##### Task 5.2: Implement API Endpoints (3 days)
+- Additional methods in `PlayerController` for all game actions
+  - `startSkill`, `stopSkill`
+  - `startCombat`, `stopCombat`
+  - `craftItem`
+  - `sellItem`, `buyItem`
+  - `equipItem`, `unequipItem`
+  - `saveGame`, `loadGame`
+
+##### Task 5.3: Define API Routes (1 day)
+```typescript
+const router = express.Router();
+
+// Create instances of repositories and services
+const playerRepository = new InMemoryPlayerRepository();
+const enemyRepository = new InMemoryEnemyRepository();
+const itemRepository = new InMemoryItemRepository();
+const shopRepository = new InMemoryShopRepository();
+
+const skillService = new SkillService(itemRepository);
+const combatService = new CombatService(itemRepository);
+const craftingService = new CraftingService(itemRepository);
+const shopService = new ShopService(shopRepository);
+const playerService = new PlayerService(playerRepository, shopService, craftingService);
+const gameService = new GameService(playerRepository, skillService, combatService);
+
+const playerController = new PlayerController(playerService, gameService);
+
+// Define routes
+router.get('/api/game', (req, res) => playerController.getGame(req, res));
+router.post('/api/start-skill/:skillId', (req, res) => playerController.startSkill(req, res));
+// Additional routes for all game actions
+
+export default router;
+```
+
+#### Step 6: Basic UI (4-6 Days)
+
+##### Task 6.1: Create React Components (3 days)
+- `SkillList`: Shows player skills with training controls
+- `Inventory`: Displays player items
+- `CombatPanel`: Shows combat information
+- `Shop`: Interface for buying/selling items
+- `Equipment`: Shows equipped items
+
+##### Task 6.2: Fetch Data from API (2 days)
+```typescript
+const App: React.FC = () => {
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get('/api/game');
+        setGameState(response.data);
+      } catch (error) {
+        console.error('Error fetching game data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    const intervalId = setInterval(fetchData, 1000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Handler functions for game actions
+  const handleStartSkill = async (skillId: string) => {
+    try {
+      await axios.post(`/api/start-skill/${skillId}`);
+      // Optimistic update
+    } catch (error) {
+      console.error('Error starting skill:', error);
+    }
+  };
+
+  // Additional handler functions
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <div className={`skill-card ${skill.isActive ? 'active' : ''}`}>
-      <div className="skill-header">
-        <h3>{skill.name}</h3>
-        <span className="skill-level">Level {skill.level}</span>
-      </div>
-      
-      <div className="skill-progress">
-        <div className="progress-bar" style={{ width: `${progressPercent}%` }}></div>
-        <span className="progress-text">{Math.floor(progressPercent)}%</span>
-      </div>
-      
-      {/* Action buttons */}
+    <div>
+      <h1>Melvor Idle Replica</h1>
+      <SkillList 
+        skills={gameState.player.skills}
+        onStartSkill={handleStartSkill}
+        onStopSkill={handleStopSkill}
+      />
+      {/* Additional components */}
     </div>
   );
 };
 ```
 
-### 7. Persistence and Offline Progress
+##### Task 6.3: Update UI Based on Game State (1 day)
+- Implement component rendering logic using data from API
 
-Use MongoDB for data persistence:
+##### Task 6.4: Add Minimal CSS (1 day)
+- Basic styling for layout and readability
 
+#### Step 7: Testing and Refinement (3-5 Days)
+
+##### Task 7.1: Thoroughly Test All Features (2 days)
+- Manually test each game feature and interaction
+- Test edge cases and error conditions
+
+##### Task 7.2: Fix Identified Bugs (1-2 days)
+- Debug and fix any issues found during testing
+
+##### Task 7.3: Initial Game Balancing (1 day)
+- Adjust XP rates, resource gathering, and combat difficulty
+- Ensure progression feels rewarding without being too fast or slow
+
+### Phase 2: Core Gameplay Expansion
+
+#### Add Thieving Skill
+- Update types and constants
+- Add `applyThieving` method to `SkillService`
+- Create thieving loot tables
+- Update UI to include Thieving skill
+
+#### Add Ranged Combat
+- Extend `Item` interface for ranged weapons/ammunition
+- Add ammunition slot to `Equipment`
+- Update `CombatService` to handle ranged attacks
+- Add ammunition consumption logic
+- Create ranged weapons and ammunition items
+
+#### Add Separate Bank UI
+- Create `Bank` entity with storage capabilities
+- Implement deposit/withdraw functionality
+- Create Bank component in UI
+- Add API endpoints for bank operations
+
+### Phase 3: Depth and Polish
+
+#### Additional Skills
+- Add remaining skills: Crafting, Runecrafting, Herblore, Magic, etc.
+- Implement skill-specific mechanics and progression systems
+
+#### Advanced Combat
+- Implement Magic combat with spells and runes
+- Add special attacks for weapons
+- Create status effects system
+- Implement dungeons with multiple enemies and bosses
+
+#### Enhanced UI and Economy
+- Improve UI with better graphics and animations
+- Add tooltips and help system
+- Create a comprehensive tutorial
+- Refine resource prices and economy balance
+
+#### Extended Features
+- Implement 24-hour offline progression
+- Create achievements and leaderboards system
+- Add mastery system for deeper skill progression
+- Develop mobile versions (iOS/Android)
+
+## Database Migration (MongoDB)
+
+1. Install MongoDB driver: `npm install mongodb`
+2. Create MongoDB connection in infrastructure layer
+3. Implement MongoDB repositories
+4. Update dependency injection to use MongoDB repositories
+5. Test thoroughly to ensure data persistence
+
+## Example: Mastery System Implementation
+
+### Extend Data Types
 ```typescript
-// MongoDB Player repository
+export interface Mastery {
+  level: number;
+  xp: number;
+  unlocks: { [level: number]: string };
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  level: number;
+  xp: number;
+  xpPerAction: number;
+  isActive: boolean;
+  mastery: Mastery;
+}
+```
+
+### Update Skill Entity
+```typescript
+export class Skill implements SkillInterface {
+  // Existing properties
+  mastery: Mastery;
+
+  constructor(id: string, name: string, xpPerAction: number) {
+    // Existing initialization
+    this.mastery = {
+      level: 1,
+      xp: 0,
+      unlocks: this.getMasteryUnlocks()
+    };
+  }
+
+  // Existing methods
+
+  addMasteryXp(xp: number) {
+    this.mastery.xp += xp;
+    this.updateMasteryLevel();
+  }
+
+  updateMasteryLevel() {
+    while (this.mastery.xp >= this.getMasteryXpForNextLevel()) {
+      this.mastery.level++;
+    }
+  }
+
+  getMasteryXpForNextLevel(): number {
+    return Math.floor(150 * (this.mastery.level ** 1.8));
+  }
+
+  getMasteryUnlocks(): { [level: number]: string } {
+    // Skill-specific mastery unlocks
+    return {};
+  }
+}
+```
+
+### Update SkillService
+```typescript
+applySkillAction(skill: Skill, player: Player, elapsedTime: number) {
+  const xpGained = this.calculateXpGain(skill, elapsedTime);
+  this.applyXp(skill, xpGained);
+  
+  // Add mastery XP (proportional to skill XP)
+  const masteryXpGained = xpGained * 0.1;
+  skill.addMasteryXp(masteryXpGained);
+  
+  // Apply skill-specific action
+  switch (skill.id) {
+    // Existing cases
+  }
+}
+```
+
+## MongoDB Integration Example
+
+### Define Schemas
+```typescript
+// infrastructure/persistence/mongo/schemas/PlayerSchema.ts
+import mongoose from 'mongoose';
+
+const SkillSchema = new mongoose.Schema({
+  id: String,
+  name: String,
+  level: Number,
+  xp: Number,
+  xpPerAction: Number,
+  isActive: Boolean,
+  mastery: {
+    level: Number,
+    xp: Number,
+    unlocks: mongoose.Schema.Types.Mixed
+  }
+});
+
+const ItemSchema = new mongoose.Schema({
+  id: String,
+  name: String,
+  quantity: Number,
+  type: String,
+  sellPrice: Number,
+  stats: mongoose.Schema.Types.Mixed,
+  slot: String
+});
+
+const PlayerSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  gold: Number,
+  lastUpdate: Number,
+  skills: { type: Map, of: SkillSchema },
+  inventory: { type: Map, of: ItemSchema },
+  equipment: {
+    weapon: ItemSchema,
+    armor: ItemSchema,
+    ammunition: ItemSchema
+  },
+  combat: {
+    isFighting: Boolean,
+    currentEnemy: mongoose.Schema.Types.Mixed
+  },
+  bank: {
+    items: { type: Map, of: ItemSchema }
+  }
+});
+
+export const PlayerModel = mongoose.model('Player', PlayerSchema);
+```
+
+### MongoDB Repository Implementation
+```typescript
+// infrastructure/persistence/mongo/MongoPlayerRepository.ts
+import { PlayerRepository } from '../../../domain/repositories/PlayerRepository';
+import { Player } from '../../../domain/aggregates/player/Player';
+import { PlayerModel } from './schemas/PlayerSchema';
+import { PlayerMapper } from './mappers/PlayerMapper';
+
 export class MongoPlayerRepository implements PlayerRepository {
+  private playerMapper: PlayerMapper;
+
+  constructor() {
+    this.playerMapper = new PlayerMapper();
+  }
+
   async getById(playerId: string): Promise<Player | undefined> {
     const playerDoc = await PlayerModel.findOne({ id: playerId });
     if (!playerDoc) return undefined;
@@ -915,37 +1116,14 @@ export class MongoPlayerRepository implements PlayerRepository {
 }
 ```
 
-Implement offline progress calculation to process accumulated time when player returns:
+## Ongoing Considerations
 
-```typescript
-// Calculate offline progress when player logs back in
-applyOfflineProgress(player: Player): Player {
-  const now = Date.now();
-  const elapsedTime = now - player.lastUpdate;
-  
-  // Cap offline progress (max 24 hours)
-  const maxOfflineTime = 24 * 60 * 60 * 1000;
-  const effectiveElapsedTime = Math.min(elapsedTime, maxOfflineTime);
-  
-  // Apply skill progress at a slightly reduced rate
-  Object.values(player.skills).forEach(skill => {
-    if (skill.isActive) {
-      const offlineRate = 0.8; // 80% efficiency when offline
-      const xpGain = calculateXpGain(skill, effectiveElapsedTime) * offlineRate;
-      skill.addXp(xpGain);
-      generateOfflineResources(player, skill, effectiveElapsedTime * offlineRate);
-    }
-  });
-  
-  return player;
-}
-```
-
-### 8. Game Balance Considerations
-
-- Create a satisfying progression curve—early levels should feel quick, later levels more challenging
-- Balance resource generation rates with crafting requirements
-- Design combat encounters with appropriate difficulty scaling
-- Implement skill connections (e.g., Mining→Smithing→Combat) to create meaningful progression paths
-
-For the MVP, focus on implementing 3-4 core skills (like Woodcutting, Fishing, Mining, and Smithing) with clear connections between them, basic combat, and a simple shop system. This provides the essential game loop while keeping scope manageable.
+- **Game Balancing**: Continuously adjust progression rates and difficulty
+- **Performance**: Optimize for smooth gameplay, especially with many active skills
+- **Scalability**: Design for growing content and potential player base
+- **Security**: Prevent exploits and secure player data
+- **Code Quality**: Maintain clean architecture and thorough documentation
+- **Community Feedback**: Gather player feedback to guide development priorities and balance adjustments
+- **Error Handling**: Implement robust error handling throughout the application
+- **Logging**: Add comprehensive logging for debugging and analytics
+- **Deployment**: Plan for efficient deployment and hosting strategies

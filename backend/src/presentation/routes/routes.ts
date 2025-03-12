@@ -6,6 +6,7 @@ import { SkillService } from '../../application/services/SkillService';
 import { CombatService } from '../../application/services/CombatService';
 import { CraftingService } from '../../application/services/CraftingService';
 import { ShopService } from '../../application/services/ShopService';
+
 import { InMemoryPlayerRepository } from '../../infrastructure/persistence/inMemory/InMemoryPlayerRepository';
 import { InMemoryItemRepository } from '../../infrastructure/persistence/inMemory/InMemoryItemRepository';
 import { InMemoryEnemyRepository } from '../../infrastructure/persistence/inMemory/InMemoryEnemyRepository';
@@ -20,8 +21,8 @@ const enemyRepository = new InMemoryEnemyRepository();
 const shopRepository = new InMemoryShopRepository();
 
 // Create instances of services
-const skillService = new SkillService(itemRepository);
-const combatService = new CombatService(itemRepository);
+const skillService = new SkillService();
+const combatService = new CombatService();
 const craftingService = new CraftingService(itemRepository);
 const shopService = new ShopService(shopRepository);
 const playerService = new PlayerService(
