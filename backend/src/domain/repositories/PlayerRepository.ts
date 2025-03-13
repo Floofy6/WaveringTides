@@ -1,4 +1,4 @@
-import { Player } from '../aggregates/player/Player';
+import { Player } from '../entities/Player';
 
 export interface PlayerRepository {
   getById(playerId: string): Promise<Player | undefined>;

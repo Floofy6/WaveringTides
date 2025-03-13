@@ -1,5 +1,5 @@
 import { ItemRepository } from '../../../domain/repositories/ItemRepository';
-import { Item } from '../../../shared/types';
+import { Item } from '../../../domain/entities/Item';
 import { ITEMS } from '../../../shared/constants';
 
 export class InMemoryShopRepository implements ItemRepository {
@@ -7,9 +7,18 @@ export class InMemoryShopRepository implements ItemRepository {
 
   constructor() {
     // Only add items with buyPrice to the shop
-    Object.values(ITEMS).forEach(item => {
-      if (item.buyPrice) {
-        this.shopItems[item.id] = { ...item };
+    Object.entries(ITEMS).forEach(([id, itemData]) => {
+      if (itemData.buyPrice) {
+        this.shopItems[id] = new Item(
+          itemData.id,
+          itemData.name,
+          itemData.type as 'resource' | 'equipment',
+          itemData.quantity,
+          itemData.sellPrice,
+          itemData.buyPrice,
+          itemData.stats,
+          itemData.slot as 'weapon' | 'armor' | undefined
+        );
       }
     });
   }
@@ -20,5 +29,12 @@ export class InMemoryShopRepository implements ItemRepository {
 
   async getAll(): Promise<Item[]> {
     return Object.values(this.shopItems);
+  }
+  
+  async save(item: Item): Promise<void> {
+    // Only save items with buyPrice to the shop
+    if (item.getBuyPrice()) {
+      this.shopItems[item.getId()] = item;
+    }
   }
 }

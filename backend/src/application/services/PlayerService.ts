@@ -1,9 +1,10 @@
-import { Player } from '../../domain/aggregates/player/Player';
+import { Player as AggregatePlayer } from '../../domain/aggregates/player/Player';
+import { Player as EntityPlayer } from '../../domain/entities/Player';
 import { PlayerRepository } from '../../domain/repositories/PlayerRepository';
 import { ShopService } from './ShopService';
 import { CraftingService } from './CraftingService';
 import { EnemyRepository } from '../../domain/repositories/EnemyRepository';
-import { Skill } from '../../domain/aggregates/player/Skill';
+import { PlayerAdapter } from '../adapters/PlayerAdapter';
 
 export class PlayerService {
   private playerRepository: PlayerRepository;
@@ -23,16 +24,24 @@ export class PlayerService {
     this.enemyRepository = enemyRepository;
   }
 
-  async loadGame(playerId: string): Promise<Player | undefined> {
-    return this.playerRepository.getById(playerId);
+  async loadGame(playerId: string): Promise<AggregatePlayer | undefined> {
+    const entityPlayer = await this.playerRepository.getById(playerId);
+    if (!entityPlayer) {
+      return undefined;
+    }
+    
+    // Convert entity player to aggregate player
+    return PlayerAdapter.toAggregate(entityPlayer as EntityPlayer);
   }
 
-  async saveGame(player: Player): Promise<void> {
-    await this.playerRepository.save(player);
+  async saveGame(player: AggregatePlayer): Promise<void> {
+    // Convert aggregate player to entity player
+    const entityPlayer = PlayerAdapter.toEntity(player);
+    await this.playerRepository.save(entityPlayer);
   }
 
   async startSkill(playerId: string, skillId: string): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
@@ -42,19 +51,14 @@ export class PlayerService {
       throw new Error(`Skill with ID ${skillId} not found`);
     }
 
-    // Check if it's an instance of the Skill class
-    if (skillObj instanceof Skill) {
-      skillObj.activate();
-    } else {
-      // Force activate by directly setting property (backup approach)
-      skillObj.isActive = true;
-    }
+    // Set the skill to active
+    skillObj.isActive = true;
     
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async stopSkill(playerId: string, skillId: string): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
@@ -64,45 +68,40 @@ export class PlayerService {
       throw new Error(`Skill with ID ${skillId} not found`);
     }
 
-    // Check if it's an instance of the Skill class
-    if (skillObj instanceof Skill) {
-      skillObj.deactivate();
-    } else {
-      // Force deactivate by directly setting property (backup approach)
-      skillObj.isActive = false;
-    }
+    // Set the skill to inactive
+    skillObj.isActive = false;
     
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async craftItem(playerId: string, itemId: string): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
 
     await this.craftingService.craft(player, itemId);
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async buyItem(playerId: string, itemId: string, quantity: number): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
 
     await this.shopService.buyItem(player, itemId, quantity);
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async sellItem(playerId: string, itemId: string, quantity: number): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
 
     await this.shopService.sellItem(player, itemId, quantity);
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async startCombat(playerId: string, enemyId: string): Promise<void> {
@@ -110,7 +109,7 @@ export class PlayerService {
       throw new Error("Enemy repository not initialized");
     }
 
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
@@ -121,21 +120,21 @@ export class PlayerService {
     }
 
     player.startFighting(enemy);
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async stopCombat(playerId: string): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
 
     player.stopFighting();
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async equipItem(playerId: string, itemId: string): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
@@ -146,16 +145,16 @@ export class PlayerService {
 
     const item = player.inventory[itemId];
     player.equipItem(item);
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 
   async unequipItem(playerId: string, slot: 'weapon' | 'armor'): Promise<void> {
-    const player = await this.playerRepository.getById(playerId);
+    const player = await this.loadGame(playerId);
     if (!player) {
       throw new Error(`Player with ID ${playerId} not found`);
     }
 
     player.unequipItem(slot);
-    await this.playerRepository.save(player);
+    await this.saveGame(player);
   }
 }

@@ -1,19 +1,21 @@
-import { Item as ItemInterface, CraftingRecipe } from '../../shared/types';
+import { Item as ItemInterface } from '../../shared/types';
+import { CraftingRecipe as CraftingRecipeClass } from './CraftingRecipe';
 
-export class Item implements ItemInterface {
-  id: string;
-  name: string;
-  quantity: number;
-  type: 'resource' | 'equipment';
-  sellPrice?: number;
-  buyPrice?: number;
-  stats?: {
+// Instead of implementing the interface directly, we'll use composition
+export class Item {
+  private id: string;
+  private name: string;
+  private quantity: number;
+  private type: 'resource' | 'equipment';
+  private sellPrice?: number;
+  private buyPrice?: number;
+  private stats?: {
     attackBonus?: number;
     strengthBonus?: number;
     defenseBonus?: number;
   };
-  slot?: 'weapon' | 'armor';
-  craftingRecipe?: CraftingRecipe;
+  private slot?: 'weapon' | 'armor';
+  private craftingRecipe?: CraftingRecipeClass;
 
   constructor(
     id: string,
@@ -28,7 +30,7 @@ export class Item implements ItemInterface {
       defenseBonus?: number;
     },
     slot?: 'weapon' | 'armor',
-    craftingRecipe?: CraftingRecipe
+    craftingRecipe?: CraftingRecipeClass
   ) {
     this.id = id;
     this.name = name;
@@ -41,11 +43,86 @@ export class Item implements ItemInterface {
     this.craftingRecipe = craftingRecipe;
   }
 
+  // Convert to an object that implements ItemInterface
+  public toInterface(): ItemInterface {
+    return {
+      id: this.id,
+      name: this.name,
+      quantity: this.quantity,
+      type: this.type,
+      sellPrice: this.sellPrice,
+      buyPrice: this.buyPrice,
+      stats: this.stats,
+      slot: this.slot,
+      craftingRecipe: this.craftingRecipe
+    };
+  }
+
+  public getId(): string {
+    return this.id;
+  }
+
+  public getName(): string {
+    return this.name;
+  }
+
+  public getType(): 'resource' | 'equipment' {
+    return this.type;
+  }
+
+  public getQuantity(): number {
+    return this.quantity;
+  }
+
+  public getSellPrice(): number | undefined {
+    return this.sellPrice;
+  }
+
+  public getBuyPrice(): number | undefined {
+    return this.buyPrice;
+  }
+
+  public getStats(): { attackBonus?: number; strengthBonus?: number; defenseBonus?: number; } | undefined {
+    return this.stats;
+  }
+
+  public getSlot(): 'weapon' | 'armor' | undefined {
+    return this.slot;
+  }
+
+  public getCraftingRecipe(): CraftingRecipeClass | undefined {
+    return this.craftingRecipe;
+  }
+
+  public setQuantity(quantity: number): void {
+    this.quantity = quantity;
+  }
+
+  public setSellPrice(sellPrice: number): void {
+    this.sellPrice = sellPrice;
+  }
+
+  public setBuyPrice(buyPrice: number): void {
+    this.buyPrice = buyPrice;
+  }
+
+  public setStats(stats: { attackBonus?: number; strengthBonus?: number; defenseBonus?: number; }): void {
+    this.stats = stats;
+  }
+
+  public setSlot(slot: 'weapon' | 'armor'): void {
+    this.slot = slot;
+  }
+
+  public setCraftingRecipe(craftingRecipe: CraftingRecipeClass): void {
+    this.craftingRecipe = craftingRecipe;
+  }
+
   /**
    * Increases the quantity of this item
    * @param amount Amount to increase by
    */
-  increaseQuantity(amount: number): void {
+  public increaseQuantity(amount: number = 1): void {
     if (amount < 0) {
       throw new Error('Amount must be positive');
     }
@@ -57,7 +134,7 @@ export class Item implements ItemInterface {
    * @param amount Amount to decrease by
    * @returns Whether the operation was successful
    */
-  decreaseQuantity(amount: number): boolean {
+  public decreaseQuantity(amount: number = 1): boolean {
     if (amount < 0) {
       throw new Error('Amount must be positive');
     }
@@ -71,35 +148,35 @@ export class Item implements ItemInterface {
   /**
    * Check if this item is equippable
    */
-  isEquippable(): boolean {
+  public isEquippable(): boolean {
     return this.type === 'equipment' && !!this.slot;
   }
 
   /**
    * Check if this item can be sold
    */
-  isSellable(): boolean {
+  public isSellable(): boolean {
     return !!this.sellPrice && this.sellPrice > 0;
   }
 
   /**
    * Check if this item can be bought
    */
-  isBuyable(): boolean {
+  public isBuyable(): boolean {
     return !!this.buyPrice && this.buyPrice > 0;
   }
 
   /**
    * Check if this item can be crafted
    */
-  isCraftable(): boolean {
+  public isCraftable(): boolean {
     return !!this.craftingRecipe;
   }
 
   /**
    * Calculate sell value for a given quantity
    */
-  getSellValue(quantity: number = 1): number {
+  public getSellValue(quantity: number = 1): number {
     if (!this.sellPrice) return 0;
     return this.sellPrice * Math.min(quantity, this.quantity);
   }
@@ -107,7 +184,7 @@ export class Item implements ItemInterface {
   /**
    * Calculate buy cost for a given quantity
    */
-  getBuyCost(quantity: number = 1): number {
+  public getBuyCost(quantity: number = 1): number {
     if (!this.buyPrice) return 0;
     return this.buyPrice * quantity;
   }
@@ -115,7 +192,7 @@ export class Item implements ItemInterface {
   /**
    * Clone this item with a new quantity
    */
-  clone(newQuantity?: number): Item {
+  public clone(newQuantity?: number): Item {
     return new Item(
       this.id,
       this.name,

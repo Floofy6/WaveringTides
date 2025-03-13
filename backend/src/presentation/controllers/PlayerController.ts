@@ -1,35 +1,60 @@
 import { Request, Response } from 'express';
-import { PlayerService } from '../../application/services/PlayerService';
 import { GameService } from '../../application/services/GameService';
+import { PlayerService } from '../../application/services/PlayerService';
+import { PlayerAdapter } from '../../application/adapters/PlayerAdapter';
 
 export class PlayerController {
-  private playerService: PlayerService;
   private gameService: GameService;
+  private playerService: PlayerService;
 
-  constructor(playerService: PlayerService, gameService: GameService) {
-    this.playerService = playerService;
+  constructor(gameService: GameService, playerService: PlayerService) {
     this.gameService = gameService;
+    this.playerService = playerService;
   }
 
-  async getGame(req: Request, res: Response) {
+  async getPlayer(req: Request, res: Response): Promise<void> {
     try {
-      const playerId = req.params.playerId || 'player1'; // Default for MVP
+      const playerId = req.params.id;
+      // Load using PlayerService which returns AggregatePlayer
       let player = await this.playerService.loadGame(playerId);
       
       if (!player) {
-        player = await this.gameService.createPlayer(playerId);
-      } else {
-        await this.gameService.update(playerId);
+        // Create a new player using GameService which returns EntityPlayer
+        const entityPlayer = await this.gameService.createPlayer(playerId);
+        // Convert EntityPlayer to AggregatePlayer
+        player = PlayerAdapter.toAggregate(entityPlayer);
       }
       
-      const gameState = { player };
-      res.status(200).json(gameState);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      // Create a sanitized version of the player data for the response
+      const playerData = {
+        id: player.id,
+        gold: player.gold,
+        lastUpdate: player.lastUpdate,
+        skills: player.skills,
+        inventory: player.inventory,
+        equipment: player.equipment,
+        combat: player.combat
+      };
+      
+      res.json(playerData);
+    } catch (error) {
+      console.error('Error in getPlayer:', error);
+      res.status(500).json({ error: 'Failed to get player' });
     }
   }
 
-  async startSkill(req: Request, res: Response) {
+  async updatePlayer(req: Request, res: Response): Promise<void> {
+    try {
+      const playerId = req.params.id;
+      await this.gameService.update(playerId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error in updatePlayer:', error);
+      res.status(500).json({ error: 'Failed to update player' });
+    }
+  }
+
+  async startSkill(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       const { skillId } = req.params;
@@ -44,7 +69,7 @@ export class PlayerController {
     }
   }
 
-  async stopSkill(req: Request, res: Response) {
+  async stopSkill(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       const { skillId } = req.params;
@@ -59,7 +84,7 @@ export class PlayerController {
     }
   }
 
-  async craftItem(req: Request, res: Response) {
+  async craftItem(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       const { itemId } = req.params;
@@ -74,7 +99,7 @@ export class PlayerController {
     }
   }
 
-  async buyItem(req: Request, res: Response) {
+  async buyItem(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       const { itemId } = req.params;
@@ -90,7 +115,7 @@ export class PlayerController {
     }
   }
 
-  async sellItem(req: Request, res: Response) {
+  async sellItem(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       const { itemId } = req.params;
@@ -106,7 +131,7 @@ export class PlayerController {
     }
   }
 
-  async startCombat(req: Request, res: Response) {
+  async startCombat(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       const { enemyId } = req.params;
@@ -121,7 +146,7 @@ export class PlayerController {
     }
   }
 
-  async stopCombat(req: Request, res: Response) {
+  async stopCombat(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       
@@ -135,7 +160,7 @@ export class PlayerController {
     }
   }
 
-  async equipItem(req: Request, res: Response) {
+  async equipItem(req: Request, res: Response): Promise<void> {
     try {
       const playerId = req.params.playerId || 'player1';
       const { itemId } = req.params;

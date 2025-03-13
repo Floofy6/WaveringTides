@@ -1,9 +1,10 @@
-import { Player } from '../../domain/aggregates/player/Player';
-import { Skill } from '../../domain/aggregates/player/Skill';
+import { Player } from '../../domain/entities/Player';
+import { Skill } from '../../domain/entities/Skill';
 import { PlayerRepository } from '../../domain/repositories/PlayerRepository';
 import { SkillService } from './SkillService';
 import { CombatService } from './CombatService';
 import { SKILL_IDS } from '../../shared/constants';
+import { PlayerAdapter } from '../adapters/PlayerAdapter';
 
 export class GameService {
   private playerRepository: PlayerRepository;
@@ -27,25 +28,61 @@ export class GameService {
     }
 
     const now = Date.now();
-    const elapsedTime = now - player.lastUpdate;
+    const elapsedTime = now - player.getLastUpdate();
     
     // Update active skills
-    for (const skillId in player.skills) {
-      if (player.skills.hasOwnProperty(skillId)) {
-        const skill = player.skills[skillId];
-        if (skill.isActive) {
-          this.skillService.applySkillAction(skill, player, elapsedTime);
+    const skills = player.getSkills();
+    for (const skillId in skills) {
+      if (Object.prototype.hasOwnProperty.call(skills, skillId)) {
+        const skill = skills[skillId];
+        if (skill.getIsActive()) {
+          // Convert player to aggregate type for the skill service
+          const aggregatePlayer = PlayerAdapter.toAggregate(player);
+          // Convert skill to the type expected by the skill service
+          this.skillService.applySkillAction(
+            { 
+              id: skill.getId(),
+              name: skill.getName(),
+              level: skill.getLevel(),
+              xp: skill.getXp(),
+              xpPerAction: skill.getXpPerAction(),
+              isActive: skill.getIsActive()
+            }, 
+            aggregatePlayer, 
+            elapsedTime
+          );
+          // Convert back to entity type after the skill service updates
+          Object.assign(player, PlayerAdapter.toEntity(aggregatePlayer));
         }
       }
     }
 
     // Handle combat
-    if (player.combat.isFighting && player.combat.currentEnemy) {
-      this.combatService.handleCombatRound(player, player.combat.currentEnemy, elapsedTime);
+    const combatState = player.getCombatState();
+    if (combatState.isFighting && combatState.currentEnemy) {
+      // Convert player to aggregate type for the combat service
+      const aggregatePlayer = PlayerAdapter.toAggregate(player);
+      // Convert enemy to the type expected by the combat service
+      const enemy = combatState.currentEnemy;
+      this.combatService.handleCombatRound(
+        aggregatePlayer,
+        {
+          id: enemy.getId(),
+          name: enemy.getName(),
+          health: enemy.getHealth(),
+          attack: enemy.getAttack(),
+          defense: enemy.getDefense(),
+          maxHealth: enemy.getMaxHealth(),
+          lootTable: enemy.getLootTable()
+        }, 
+        elapsedTime
+      );
+      // Convert back to entity type after the combat service updates
+      Object.assign(player, PlayerAdapter.toEntity(aggregatePlayer));
     }
 
     // Update timestamp and save
-    player.lastUpdate = now;
+    player.setLastUpdate(now);
     await this.playerRepository.save(player);
   }
 

@@ -1,32 +1,39 @@
 import { Player } from '../../domain/aggregates/player/Player';
-import { Item } from '../../shared/types';
+import { Item } from '../../domain/entities/Item';
 import { ItemRepository } from '../../domain/repositories/ItemRepository';
+import { Item as ItemType } from '../../shared/types';
 
 export class CraftingService {
   constructor(private readonly itemRepository: ItemRepository) {}
 
   // Helper method to create a properly typed item
-  private createTypedItem(template: any, quantity: number): Item {
-    return {
-      id: template.id,
-      name: template.name,
-      quantity: quantity,
-      type: template.type as 'resource' | 'equipment',
-      sellPrice: template.sellPrice,
-      buyPrice: template.buyPrice,
-      stats: template.stats,
-      slot: template.slot as 'weapon' | 'armor' | undefined,
-      craftingRecipe: template.craftingRecipe
-    };
+  private createItem(item: Item, quantity: number): Item {
+    const newItem = new Item(
+      item.getId(),
+      item.getName(),
+      item.getType(),
+      quantity,
+      item.getSellPrice(),
+      item.getBuyPrice(),
+      item.getStats(),
+      item.getSlot()
+    );
+    
+    // Set crafting recipe if it exists
+    const craftingRecipe = item.getCraftingRecipe();
+    if (craftingRecipe) {
+      newItem.setCraftingRecipe(craftingRecipe);
+    }
+    
+    return newItem;
   }
 
   async canCraft(player: Player, itemId: string): Promise<boolean> {
     const item = await this.itemRepository.getById(itemId);
-    if (!item || !item.craftingRecipe) {
-      return false;
-    }
-
-    const recipe = item.craftingRecipe;
+    if (!item) return false;
+    
+    const recipe = item.getCraftingRecipe();
+    if (!recipe) return false;
 
     // Check skill level
     if (player.getSkillLevel(recipe.skillId) < recipe.level) {
@@ -50,20 +57,38 @@ export class CraftingService {
     }
 
     const itemTemplate = await this.itemRepository.getById(itemId);
-    if (!itemTemplate || !itemTemplate.craftingRecipe) {
-      throw new Error("Error in crafting");
+    if (!itemTemplate) {
+      throw new Error("Item template not found");
     }
     
-    const recipe = itemTemplate.craftingRecipe;
+    const recipe = itemTemplate.getCraftingRecipe();
+    if (!recipe) {
+      throw new Error("Crafting recipe not found");
+    }
 
     // Remove resources
     for (const resourceId in recipe.requirements) {
       player.removeItem(resourceId, recipe.requirements[resourceId]);
     }
 
-    // Add crafted item
-    const craftedItem = this.createTypedItem(itemTemplate, 1);
-    player.addItem(craftedItem);
+    // Add crafted item - convert domain entity to interface type expected by player
+    const craftedItem = this.createItem(itemTemplate, 1);
+    
+    // Here we're creating a plain object that matches the ItemType interface
+    // which is what the Player aggregate expects
+    const craftedItemData: ItemType = {
+      id: craftedItem.getId(),
+      name: craftedItem.getName(),
+      quantity: craftedItem.getQuantity(),
+      type: craftedItem.getType(),
+      sellPrice: craftedItem.getSellPrice(),
+      buyPrice: craftedItem.getBuyPrice(),
+      stats: craftedItem.getStats(),
+      slot: craftedItem.getSlot(),
+      craftingRecipe: craftedItem.getCraftingRecipe()
+    };
+    
+    player.addItem(craftedItemData);
 
     // Award XP
     player.addXpToSkill(recipe.skillId, recipe.level * 10);

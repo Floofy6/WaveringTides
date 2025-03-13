@@ -1,105 +1,125 @@
-import { Player } from '../../../domain/aggregates/player/Player';
 import { PlayerRepository } from '../../../domain/repositories/PlayerRepository';
-import { PlayerModel } from './schemas';
-import { Skill } from '../../../domain/aggregates/player/Skill';
-import { SKILL_IDS } from '../../../shared/constants';
+import { Player } from '../../../domain/entities/Player';
+import { PlayerModel } from './schemas/PlayerSchema';
+import { PlayerAdapter } from '../../../application/adapters/PlayerAdapter';
+import { Player as AggregatePlayer } from '../../../domain/aggregates/player/Player';
+import { Skill as AggregateSkill } from '../../../domain/aggregates/player/Skill';
 
 export class MongoPlayerRepository implements PlayerRepository {
   async getById(playerId: string): Promise<Player | undefined> {
     try {
       const playerDocument = await PlayerModel.findOne({ id: playerId });
-      
       if (!playerDocument) {
         return undefined;
       }
       
-      // Convert document to domain entity
-      const player = new Player(playerDocument.id);
-      player.gold = playerDocument.gold;
-      player.lastUpdate = playerDocument.lastUpdate;
+      // First create an aggregate player
+      const aggregatePlayer = this.mapToAggregate(playerDocument);
       
-      // Convert skills
-      const skillsMap = playerDocument.get('skills');
-      if (skillsMap) {
-        for (const [skillId, skillData] of skillsMap.entries()) {
-          const skill = new Skill(skillData.id, skillData.name, skillData.xpPerAction);
-          skill.level = skillData.level;
-          skill.xp = skillData.xp;
-          skill.isActive = skillData.isActive;
-          player.addSkill(skill);
-        }
-      }
-      
-      // Convert inventory
-      const inventoryMap = playerDocument.get('inventory');
-      if (inventoryMap) {
-        for (const [itemId, itemData] of inventoryMap.entries()) {
-          player.addItem({
-            id: itemData.id,
-            name: itemData.name,
-            quantity: itemData.quantity,
-            type: itemData.type,
-            sellPrice: itemData.sellPrice,
-            buyPrice: itemData.buyPrice,
-            stats: itemData.stats,
-            slot: itemData.slot,
-            craftingRecipe: itemData.craftingRecipe
-          });
-        }
-      }
-      
-      // Convert equipment
-      if (playerDocument.equipment) {
-        if (playerDocument.equipment.weapon) {
-          player.equipItem(playerDocument.equipment.weapon);
-        }
-        if (playerDocument.equipment.armor) {
-          player.equipItem(playerDocument.equipment.armor);
-        }
-      }
-      
-      // Convert combat
-      if (playerDocument.combat) {
-        player.combat.isFighting = playerDocument.combat.isFighting;
-        if (playerDocument.combat.currentEnemy) {
-          player.combat.currentEnemy = {
-            id: playerDocument.combat.currentEnemy.id,
-            name: playerDocument.combat.currentEnemy.name,
-            attack: playerDocument.combat.currentEnemy.attack,
-            defense: playerDocument.combat.currentEnemy.defense,
-            health: playerDocument.combat.currentEnemy.health,
-            maxHealth: playerDocument.combat.currentEnemy.maxHealth,
-            lootTable: playerDocument.combat.currentEnemy.lootTable
-          };
-        }
-      }
-      
-      return player;
+      // Then convert to entity player
+      return PlayerAdapter.toEntity(aggregatePlayer);
     } catch (error) {
-      console.error('Error fetching player from MongoDB:', error);
+      console.error('Error fetching player:', error);
       return undefined;
     }
   }
 
   async save(player: Player): Promise<void> {
     try {
-      // Convert player to document structure
+      // Convert entity player to aggregate
+      const aggregatePlayer = PlayerAdapter.toAggregate(player);
+      
+      // Map to MongoDB document format
+      const playerData = this.mapToPersistence(aggregatePlayer);
+      
       await PlayerModel.findOneAndUpdate(
-        { id: player.id },
-        {
-          id: player.id,
-          gold: player.gold,
-          lastUpdate: player.lastUpdate,
-          skills: player.skills,
-          inventory: player.inventory,
-          equipment: player.equipment,
-          combat: player.combat
-        },
-        { upsert: true, new: true }
+        { id: player.getId() },
+        playerData,
+        { upsert: true }
       );
     } catch (error) {
-      console.error('Error saving player to MongoDB:', error);
-      throw error;
+      console.error('Error saving player:', error);
     }
+  }
+
+  private mapToAggregate(playerDocument: any): AggregatePlayer {
+    // Create a new aggregate player instance
+    const player = new AggregatePlayer(playerDocument.id);
+    
+    // Set basic properties
+    player.gold = playerDocument.gold || 0;
+    player.lastUpdate = playerDocument.lastUpdate || Date.now();
+    
+    // Map skills
+    if (playerDocument.skills) {
+      for (const skillKey in playerDocument.skills) {
+        const skillData = playerDocument.skills[skillKey];
+        // Create the skill directly in the skills object
+        // Note: AggregateSkill constructor only takes 3 parameters (id, name, xpPerAction)
+        const skill = new AggregateSkill(
+          skillData.id,
+          skillData.name,
+          skillData.xpPerAction || 1
+        );
+        // Set additional properties
+        skill.level = skillData.level || 1;
+        skill.xp = skillData.xp || 0;
+        skill.isActive = skillData.isActive || false;
+        
+        player.skills[skillData.id] = skill;
+      }
+    }
+    
+    // Map inventory
+    if (playerDocument.inventory) {
+      for (const itemKey in playerDocument.inventory) {
+        const itemData = playerDocument.inventory[itemKey];
+        player.addItem({
+          id: itemData.id,
+          name: itemData.name,
+          quantity: itemData.quantity || 1,
+          type: itemData.type,
+          sellPrice: itemData.sellPrice,
+          buyPrice: itemData.buyPrice,
+          stats: itemData.stats,
+          slot: itemData.slot,
+          craftingRecipe: itemData.craftingRecipe
+        });
+      }
+    }
+    
+    // Map equipment
+    if (playerDocument.equipment) {
+      if (playerDocument.equipment.weapon) {
+        player.equipItem(playerDocument.equipment.weapon);
+      }
+      
+      if (playerDocument.equipment.armor) {
+        player.equipItem(playerDocument.equipment.armor);
+      }
+    }
+    
+    // Map combat state
+    if (playerDocument.combat) {
+      player.combat.isFighting = playerDocument.combat.isFighting || false;
+      if (playerDocument.combat.currentEnemy) {
+        player.startFighting(playerDocument.combat.currentEnemy);
+      }
+    }
+    
+    return player;
+  }
+
+  private mapToPersistence(player: AggregatePlayer): any {
+    // Create a representation of player suitable for MongoDB
+    return {
+      id: player.id,
+      gold: player.gold,
+      lastUpdate: player.lastUpdate,
+      skills: player.skills,
+      inventory: player.inventory,
+      equipment: player.equipment,
+      combat: player.combat
+    };
   }
 }

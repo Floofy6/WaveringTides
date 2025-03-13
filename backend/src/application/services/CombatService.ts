@@ -16,8 +16,7 @@ export class CombatService {
       sellPrice: template.sellPrice,
       buyPrice: template.buyPrice,
       stats: template.stats,
-      slot: template.slot as 'weapon' | 'armor' | undefined,
-      craftingRecipe: template.craftingRecipe
+      slot: template.slot as 'weapon' | 'armor' | undefined
     };
   }
 
@@ -68,7 +67,8 @@ export class CombatService {
         player.addXpToSkill(SKILL_IDS.HITPOINTS, -enemyDamage);
         
         // Check if player is defeated (hitpoints at 0)
-        if (player.skills[SKILL_IDS.HITPOINTS].xp <= 0) {
+        const hitpointsSkill = player.skills[SKILL_IDS.HITPOINTS];
+        if (hitpointsSkill && hitpointsSkill.xp <= 0) {
           this.handlePlayerDefeat(player);
           break;
         }
@@ -86,8 +86,7 @@ export class CombatService {
     }
 
     // Reset combat state
-    player.combat.isFighting = false;
-    player.combat.currentEnemy = undefined;
+    player.stopFighting();
     
     // Add some gold
     player.addGold(Math.floor(Math.random() * 5) + 5);
@@ -95,10 +94,11 @@ export class CombatService {
 
   handlePlayerDefeat(player: Player) {
     // Reset combat state
-    player.combat.isFighting = false;
-    player.combat.currentEnemy = undefined;
+    player.stopFighting();
     
     // Reset hitpoints XP to a small positive value
-    player.skills[SKILL_IDS.HITPOINTS].xp = 10;
+    if (player.skills[SKILL_IDS.HITPOINTS]) {
+      player.skills[SKILL_IDS.HITPOINTS].xp = 10;
+    }
   }
 }

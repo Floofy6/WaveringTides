@@ -8,8 +8,7 @@ The goal is to create a single-player, web-based idle/incremental game that fait
 - **Clear Understanding**: An intuitive UI with tooltips, clear labels, and progress bars to help players understand game mechanics
 - **Balanced Challenge**: Challenging but not overly grindy, especially in early stages, with a focus on accessible core gameplay loops
 - **Meaningful Connections**: Skills should be interconnected (e.g., Mining provides ore for Smithing, Woodcutting provides logs for Firemaking)
-
-## Core Features
+r 
 
 ### Skill System
 - Skills have levels (1-99) and experience points

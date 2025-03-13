@@ -16,8 +16,7 @@ export class SkillService {
       sellPrice: template.sellPrice,
       buyPrice: template.buyPrice,
       stats: template.stats,
-      slot: template.slot as 'weapon' | 'armor' | undefined,
-      craftingRecipe: template.craftingRecipe
+      slot: template.slot as 'weapon' | 'armor' | undefined
     };
   }
 
