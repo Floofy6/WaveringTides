@@ -22,58 +22,60 @@ const SkillPanel: React.FC = () => {
   };
   
   return (
-    <div className="skill-panel">
+    <>
       <h2>Skills</h2>
       
-      <div className="skill-list">
-        {Object.values(skills).map((skill: Skill) => (
-          <div 
-            key={skill.id} 
-            className={`skill-item ${currentSkill?.id === skill.id ? 'selected' : ''}`}
-            onClick={() => selectSkill(skill.id)}
-          >
-            <div className="skill-header">
-              <h3>{skill.name}</h3>
-              <span className="skill-level">Level {skill.level}</span>
-            </div>
-            
-            <SkillProgressBar skill={skill} />
-            
-            <div className="skill-actions">
-              <button
-                className={`skill-action-btn ${skill.isActive ? 'stop-btn' : 'start-btn'}`}
-                onClick={(e) => handleToggleSkill(skill, e)}
-              >
-                {skill.isActive ? 'Stop' : 'Start'}
-              </button>
-            </div>
-            
-            {currentSkill?.id === skill.id && (
-              <div className="skill-details">
-                <p>XP per action: {skill.xpPerAction}</p>
-                <p>Status: {skill.isActive ? 'Active' : 'Inactive'}</p>
-                
-                {skill.mastery && (
-                  <div className="mastery-list">
-                    <h4>Mastery Unlocks</h4>
-                    <ul>
-                      {Object.entries(skill.mastery.unlocks).map(([level, description]) => (
-                        <li 
-                          key={level}
-                          className={skill.level >= parseInt(level) ? 'unlocked' : 'locked'}
-                        >
-                          Level {level}: {description}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+      <div className="skill-container">
+        <div className="skill-list-container">
+          {Object.values(skills).map((skill: Skill) => (
+            <div 
+              key={skill.id} 
+              className={`skill-item ${currentSkill?.id === skill.id ? 'selected' : ''}`}
+              onClick={() => selectSkill(skill.id)}
+            >
+              <div className="skill-header">
+                <div className="skill-name">{skill.name}</div>
+                <span className="skill-level">Level {skill.level}</span>
               </div>
-            )}
-          </div>
-        ))}
+              
+              <SkillProgressBar skill={skill} />
+              
+              <div className="skill-actions">
+                <button
+                  className={`skill-action-btn ${skill.isActive ? 'stop-btn' : 'start-btn'}`}
+                  onClick={(e) => handleToggleSkill(skill, e)}
+                >
+                  {skill.isActive ? 'Stop' : 'Start'}
+                </button>
+              </div>
+              
+              {currentSkill?.id === skill.id && (
+                <div className="skill-details">
+                  <p>XP per action: {skill.xpPerAction}</p>
+                  <p>Status: {skill.isActive ? 'Active' : 'Inactive'}</p>
+                  
+                  {skill.mastery && (
+                    <div className="mastery-list">
+                      <h4>Mastery Unlocks</h4>
+                      <ul>
+                        {Object.entries(skill.mastery.unlocks).map(([level, description]) => (
+                          <li 
+                            key={level}
+                            className={skill.level >= parseInt(level) ? 'unlocked' : 'locked'}
+                          >
+                            Level {level}: {description}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

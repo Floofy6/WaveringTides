@@ -140,6 +140,13 @@ export const useSkills = () => {
         return prevState;
       }
       
+      // Log before state
+      console.log(`Before XP update - ${skill.name}:`, {
+        level: skill.level,
+        xp: skill.xp,
+        totalXp: skill.totalXp
+      });
+      
       // Add the experience to total XP counter
       skill.totalXp = (skill.totalXp || 0) + amount;
       
@@ -154,13 +161,21 @@ export const useSkills = () => {
         console.log(`LEVEL UP! ${skill.name} is now level ${skill.level}`);
       } else {
         // For progress bar, only track XP within current level
-      const requiredXP = calculateXpForNextLevel(skill.level);
-      if (skill.xp >= requiredXP) {
-        skill.level += 1;
-        console.log(`LEVEL UP! ${skill.name} is now level ${skill.level}`);
+        const currentLevelTotalXp = totalXpForLevel(skill.level);
         
-        // You could add more level-up logic here, like unlocking new abilities
+        // Calculate how much XP we have in the current level
+        skill.xp = skill.totalXp - currentLevelTotalXp;
+        console.log(`Updated current level XP: ${skill.totalXp} - ${currentLevelTotalXp} = ${skill.xp}`);
       }
+      
+      // Log after state
+      console.log(`After XP update - ${skill.name}:`, {
+        level: skill.level,
+        xp: skill.xp,
+        totalXp: skill.totalXp,
+        currentLevelTotalXp: totalXpForLevel(skill.level),
+        nextLevelRequiredXp: calculateXpForNextLevel(skill.level)
+      });
       
       return newState;
     });

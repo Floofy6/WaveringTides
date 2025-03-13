@@ -25,6 +25,7 @@ export interface Skill {
   name: string;
   level: number;
   xp: number;
+  totalXp?: number;
   xpPerAction: number;
   isActive: boolean;
   mastery?: Mastery;

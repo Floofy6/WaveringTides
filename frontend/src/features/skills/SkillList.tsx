@@ -8,7 +8,7 @@ const SkillList: React.FC = () => {
   // We don't need to extract skills here since SkillPanel handles that
   
   return (
-    <div className="skill-list panel">
+    <div className="panel">
       <SkillPanel />
     </div>
   );

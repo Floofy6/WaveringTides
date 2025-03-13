@@ -1,106 +1,135 @@
-# Melvor Idle Replica Frontend
+# Wavering Tides
 
-This is the frontend application for the Melvor Idle Replica, a web-based idle game inspired by Melvor Idle.
+Wavering Tides is an idle RPG inspired by Old School RuneScape, built with React and TypeScript. Train your skills, battle enemies, collect resources, and upgrade your equipment in this browser-based adventure game.
+
+![Wavering Tides Game](https://placeholder-for-game-screenshot.png)
 
 ## Features
 
-- **Interactive UI**: Tab-based navigation for different game aspects
-- **Skills System**: Train multiple skills to gain resources and experience
-- **Combat System**: Battle enemies and earn loot
-- **Inventory Management**: Store and manage gathered resources
-- **Equipment System**: Equip weapons and armor to improve combat stats
-- **Shop Interface**: Buy and sell items using in-game currency
-- **Mastery System**: Progress through mastery levels to unlock bonuses for each skill
+### Skills System
+- Train various skills including Woodcutting, Fishing, and Mining
+- Authentic Old School RuneScape XP system with level cap at 99 (requiring ~13M XP)
+- Progress bars reset on level up, matching the OSRS experience
+- Skills continue to train while you're away
+
+### Mastery System
+- Each skill has its own mastery level that provides additional bonuses
+- Unlock special perks at different mastery levels
+- Separate XP tracking for main skill levels and mastery levels
+
+### Combat
+- Battle against various enemies with different stats
+- Strategic combat system with attack, defense, and health mechanics
+- Earn loot from defeated enemies to expand your inventory
+
+### Inventory & Equipment
+- Collect and manage resources in your inventory
+- Equip weapons and armor to improve your combat effectiveness
+- Sell unwanted items for gold
+
+### Shop System
+- Purchase items and equipment to help with skill training and combat
+- Spend gold earned from selling resources and fighting enemies
+
+### Interface
+- Modern, responsive UI for comfortable gameplay on any device
+- Dark/Light mode toggle for comfortable viewing in any environment
+- Real-time progress tracking for all activities
 
 ## Getting Started
 
 ### Prerequisites
-
-- Node.js (v14 or later)
+- Node.js (v14 or newer)
 - npm or yarn
-- Backend server running (see backend README)
 
 ### Installation
 
 1. Clone the repository
-```bash
-git clone https://github.com/yourusername/melvor-replica.git
-cd melvor-replica/frontend
+```
+git clone https://github.com/yourusername/WaveringTides.git
+cd WaveringTides
 ```
 
 2. Install dependencies
-```bash
+```
+cd frontend
 npm install
-# or
-yarn install
 ```
 
 3. Start the development server
-```bash
+```
 npm start
-# or
-yarn start
 ```
 
-4. Open your browser to http://localhost:3000
+4. Open your browser and navigate to `http://localhost:3000`
+
+## Game Mechanics
+
+### Skills
+Start training a skill by clicking the "Start" button on any skill card. Your character will automatically perform the action, gaining XP over time. As you level up, you'll unlock new items, faster training speeds, and special abilities.
+
+### Combat
+Select an enemy to fight from the Combat panel. Your character will automatically attack the enemy based on your equipment and stats. Successful battles will reward you with loot and gold.
+
+### Inventory Management
+Items obtained from skills and combat will appear in your inventory. You can sell these items for gold or use them for crafting and equipment upgrades.
+
+### Gold Economy
+Earn gold by selling items and defeating enemies. Spend gold at the shop to purchase helpful items and equipment.
 
 ## Project Structure
 
 ```
-frontend/
-├── public/              # Static assets
-├── src/
-│   ├── components/      # React components
-│   │   ├── CombatPanel.tsx
-│   │   ├── Equipment.tsx
-│   │   ├── Inventory.tsx
-│   │   ├── MasteryPanel.tsx
-│   │   ├── Shop.tsx
-│   │   └── SkillList.tsx
-│   ├── services/        # API services
-│   │   └── api.ts
-│   ├── types/           # TypeScript type definitions
-│   │   └── index.ts
-│   ├── App.css          # Main app styles
-│   ├── App.tsx          # Main app component
-│   ├── constants.ts     # Game constants
-│   ├── index.css        # Global styles
-│   └── index.tsx        # Application entry point
-└── package.json
+WaveringTides/
+├── frontend/                  # React frontend application
+│   ├── public/                # Static files
+│   └── src/                   # Source code
+│       ├── components/        # Reusable UI components
+│       ├── context/           # React context providers
+│       ├── features/          # Feature-specific components
+│       │   ├── combat/        # Combat system components
+│       │   ├── equipment/     # Equipment system components
+│       │   ├── inventory/     # Inventory management components
+│       │   ├── shop/          # Shop system components
+│       │   └── skills/        # Skills system components
+│       ├── hooks/             # Custom React hooks
+│       ├── layouts/           # Page layout components
+│       ├── services/          # API services
+│       ├── types/             # TypeScript type definitions
+│       └── utils/             # Utility functions and helpers
+└── backend/                   # Backend server (optional)
+    └── src/                   # Backend source code
 ```
 
-## Game Mechanics
+## Technical Details
 
-- **Skills**: Train skills like Woodcutting, Fishing, Mining to gather resources
-- **Mastery**: Unlock bonuses for each skill as you progress in mastery levels
-- **Combat**: Fight enemies to earn experience and loot
-- **Crafting**: Convert raw resources into useful items and equipment
-- **Economy**: Buy and sell items with in-game currency
+- **Frontend**: React, TypeScript, CSS
+- **State Management**: React Context API and Hooks
+- **Game Loop**: Custom game tick system for time-based progression
+- **Data Persistence**: LocalStorage for saving progress
+- **Styling**: CSS variables for theming (dark/light mode)
 
-## Technology Stack
+## Future Plans
 
-- React 18
-- TypeScript
-- Axios for API requests
-- CSS for styling
-
-## Available Scripts
-
-- `npm start`: Runs the development server
-- `npm build`: Creates a production build
-- `npm test`: Runs the test suite
-- `npm lint`: Lints the source code
-- `npm format`: Formats code using Prettier
+- More skills to train (Crafting, Smithing, etc.)
+- Quest system with rewards
+- Achievements and milestones
+- Multiplayer features and player economy
+- Mobile app version
 
 ## Contributing
 
-Please read the CONTRIBUTING.md file in the project root for contribution guidelines.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments
+## Acknowledgements
 
-- Inspired by Melvor Idle by Malcs (https://melvoridle.com/)
-- Built as a learning project for React and TypeScript
+- Inspired by Old School RuneScape and other idle RPGs
+- Created as a learning project for React and game development
+
+---
+
+Enjoy your adventure in Wavering Tides!
