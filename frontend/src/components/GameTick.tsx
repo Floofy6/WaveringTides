@@ -111,10 +111,13 @@ const GameTick: React.FC = () => {
           }
           
           // Calculate XP gain based on skill's xpPerAction and time elapsed
-          // Increased XP gain for more noticeable progression (25x faster for testing)
-          const xpGain = skill.xpPerAction * (deltaTime / 1000) * 25;
+          // Increased XP gain for more noticeable progression (50x faster for testing)
+          const xpGain = skill.xpPerAction * (deltaTime / 1000) * 50;
           
-          console.log(`Adding ${xpGain} XP to ${skill.name} (xpPerAction: ${skill.xpPerAction})`);
+          // Ensure we have a totalXp value
+          if (typeof skill.totalXp !== 'number') {
+            console.warn(`Skill ${skill.name} missing totalXp property, this may cause progress bar issues`);
+          }
           
           // Add XP to the skill (ensure it's a positive number)
           addExperience(skillId, Math.max(0, xpGain));

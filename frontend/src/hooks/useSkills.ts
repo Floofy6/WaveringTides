@@ -140,42 +140,36 @@ export const useSkills = () => {
         return prevState;
       }
       
-      // Log before state
-      console.log(`Before XP update - ${skill.name}:`, {
-        level: skill.level,
-        xp: skill.xp,
-        totalXp: skill.totalXp
-      });
+      // Initialize totalXp if it doesn't exist
+      if (typeof skill.totalXp !== 'number') {
+        // If we don't have totalXp yet, initialize it based on current level and xp
+        const levelBaseXp = totalXpForLevel(skill.level);
+        skill.totalXp = levelBaseXp + (skill.xp || 0);
+      }
       
       // Add the experience to total XP counter
-      skill.totalXp = (skill.totalXp || 0) + amount;
+      skill.totalXp += amount;
       
       // Calculate the new level based on total XP
       const newLevel = getLevelFromXp(skill.totalXp);
       
       // Check if we leveled up
       if (newLevel > skill.level) {
+        const oldLevel = skill.level;
         skill.level = newLevel;
-        // Reset current level XP to 0 for progress bar purposes
-        skill.xp = 0;
-        console.log(`LEVEL UP! ${skill.name} is now level ${skill.level}`);
-      } else {
-        // For progress bar, only track XP within current level
-        const currentLevelTotalXp = totalXpForLevel(skill.level);
         
-        // Calculate how much XP we have in the current level
-        skill.xp = skill.totalXp - currentLevelTotalXp;
-        console.log(`Updated current level XP: ${skill.totalXp} - ${currentLevelTotalXp} = ${skill.xp}`);
+        // Calculate XP within the new level
+        const newLevelBaseXp = totalXpForLevel(newLevel);
+        skill.xp = skill.totalXp - newLevelBaseXp;
+        
+        console.log(`LEVEL UP! ${skill.name} from ${oldLevel} to ${newLevel} (${skill.xp} XP into new level)`);
+      } else {
+        // No level up, just update XP within current level
+        const currentLevelBaseXp = totalXpForLevel(skill.level);
+        skill.xp = skill.totalXp - currentLevelBaseXp;
+        
+        console.log(`Added XP to ${skill.name}: now ${skill.xp}/${calculateXpForNextLevel(skill.level)} within current level`);
       }
-      
-      // Log after state
-      console.log(`After XP update - ${skill.name}:`, {
-        level: skill.level,
-        xp: skill.xp,
-        totalXp: skill.totalXp,
-        currentLevelTotalXp: totalXpForLevel(skill.level),
-        nextLevelRequiredXp: calculateXpForNextLevel(skill.level)
-      });
       
       return newState;
     });

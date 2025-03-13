@@ -68,30 +68,30 @@ const SkillProgressBar: React.FC<SkillProgressBarProps> = ({ skill }) => {
     );
   }
   
-  // Calculate current level's total XP needed
+  // Get XP thresholds for current level and next level
   const currentLevelTotalXp = totalXpForLevel(level);
+  const nextLevelTotalXp = totalXpForLevel(level + 1);
   
-  // Calculate XP needed for next level
-  const xpForNextLevel = calculateXpForNextLevel(level);
+  // Calculate XP needed for next level from current level
+  const xpForNextLevel = nextLevelTotalXp - currentLevelTotalXp;
   
-  // Make sure we have a valid totalXp value
-  const totalXp = typeof skill.totalXp === 'number' ? skill.totalXp : (currentLevelTotalXp + (skill.xp || 0));
-  
-  // Current progress within this level - FIXED CALCULATION
+  // Current XP progress within this level
   let currentLevelXp = 0;
   
+  // Make sure we have a valid totalXp value
   if (typeof skill.totalXp === 'number') {
-    // If totalXp is available, use it to calculate current level's progress
-    currentLevelXp = Math.max(0, totalXp - currentLevelTotalXp);
-    console.log(`Calculating currentLevelXp from totalXp: ${totalXp} - ${currentLevelTotalXp} = ${currentLevelXp}`);
+    // Calculate how much XP we've earned within this level
+    currentLevelXp = skill.totalXp - currentLevelTotalXp;
   } else if (typeof skill.xp === 'number') {
-    // Fall back to using the level's xp directly
-    currentLevelXp = Math.max(0, skill.xp);
-    console.log(`Using direct xp value: ${currentLevelXp}`);
+    // Directly use the level's xp if totalXp is not available
+    currentLevelXp = skill.xp;
   }
   
-  // Ensure currentLevelXp is not negative and doesn't exceed what's needed for next level
-  const displayXp = Math.min(xpForNextLevel, Math.max(0, currentLevelXp));
+  // Ensure currentLevelXp is not negative
+  currentLevelXp = Math.max(0, currentLevelXp);
+  
+  // Ensure currentLevelXp doesn't exceed what's needed for next level
+  const displayXp = Math.min(xpForNextLevel, currentLevelXp);
   
   // Calculate percentage progress toward next level
   const progressPercentage = Math.min(Math.floor((displayXp / xpForNextLevel) * 100), 100);
@@ -117,7 +117,7 @@ const SkillProgressBar: React.FC<SkillProgressBarProps> = ({ skill }) => {
       </div>
       {skill.totalXp && (
         <div className="skill-total-xp">
-          Total XP: {formatNumber(Math.floor(totalXp))}
+          Total XP: {formatNumber(Math.floor(skill.totalXp))}
         </div>
       )}
     </div>
