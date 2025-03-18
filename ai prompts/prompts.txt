@@ -1,0 +1,2 @@
+debugging prompts:
+"Think of 5-7 likely causes of issues and then distill those into 2-3 likely causes and fix them."

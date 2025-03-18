@@ -1,0 +1,106 @@
+Below is a step-by-step development plan focusing on core features, optimization, functionality, and providing an excellent UI/UX for an Old School Runescape–inspired idle game (similar to Melvor Idle). The plan is divided into phases to gradually build out a robust system while ensuring a polished user interface and smooth user experience.
+Phase 1: Foundations & MVP
+1. Project Setup
+Directory Structure: Create a clear front-end and back-end separation (e.g., frontend/ and backend/) with domain-driven folders (e.g., domain, application, infrastructure, presentation, shared).
+Tooling:
+Frontend with React + TypeScript (or Next.js + TypeScript).
+Backend with Node.js, Express, and TypeScript (or a framework like NestJS).
+State management pattern (React Context, Redux, or Zustand).
+TailwindCSS for styling (featuring custom theming).
+Basic CI/CD: Set up linting, formatting (Prettier), and a Git-based workflow.
+2. Core Domain Structures
+Player: Holds gold, skills, inventory, equipment, health, and combat state.
+Skill: Level, XP, XP per action, active/inactive status.
+Item: Unique ID, name, quantity, item type (resource/equipment/consumable), optional stats/slot.
+Enemy: Name, stats (attack/defense/health), loot table.
+GameState: Wraps player data plus any global data (e.g., used for saving/loading).
+Repositories: In-memory for an MVP (later swap to a database).
+3. Initial Data & Constants
+Skill IDs: Basic (e.g., Attack, Strength, Defence, Hitpoints, Woodcutting, Fishing, etc.).
+Item Definitions: A few starting items (e.g., logs, fish, bronze sword).
+Enemy Definitions: Goblin, rat, spider, etc., each with base stats & simple loot.
+4. Minimal Idle Loop
+GameTick: A front-end or back-end interval that updates the game state (e.g., every second).
+Skill Updates: If a skill is active, accumulate XP or resources over time.
+Combat Updates: If the player is in combat, process a combat round automatically.
+Goal: Demonstrate the basic idle mechanics: start a skill or combat, see progress, track XP, gather loot/resources.
+5. Basic UI/UX for MVP
+Layout:
+Header with Player gold & toggling theme (light/dark).
+Main section with panels: Skills, Combat, Inventory, Shop (for MVP, shop can be partial).
+Skill Panel:
+Displays skill name, level, XP bar.
+“Start” / “Stop” button to toggle training.
+Real-time XP updates with a progress bar.
+Combat Panel:
+List of enemies. Clicking an enemy starts combat.
+Display health bars for both player and enemy with a simple “Combat Log.”
+Automatic rounds displayed in the log (e.g., “You hit the Goblin for 3 damage!”).
+Inventory Panel:
+Shows items with quantity.
+(Optional) Sell or drop items if desired.
+Minimal Shop:
+Buy/sell a small set of items.
+Validate gold and item quantity.
+Aim: A functional MVP with key gameplay loops (skills & combat) and a simple, intuitive UI.
+Phase 2: Core Gameplay Enhancement
+1. Skill Expansion & Balancing
+Additional Skills: Smithing, Cooking, Firemaking, Mining, Fishing, etc.
+Progression Curve: Use an Old School RuneScape–like XP formula (e.g., exponential curve for level 99).
+Interlinking Skills: Mining provides ore → Smithing uses ore → Equipment creation, etc.
+2. Crafting & Mastery Systems
+Crafting:
+Recipes turning raw materials (e.g., logs, ore) into useful items.
+Optional skill level requirements & XP rewards.
+Mastery:
+Deeper progression beyond normal leveling (e.g., each skill has specific perks/unlocks at mastery levels).
+Mastery XP bar parallel to the main skill XP.
+3. Expanded Combat System
+More Enemies: Differentiated by stats, loot, special abilities (poison, high defense, etc.).
+Improved Combat Interface:
+Animated “hit splats,” attack/flee buttons, or auto-battle with toggles.
+Equipment & Stats:
+Equip weapons and armor that enhance Attack/Strength/Defence.
+Evaluate a “max hit” or “attack roll” formula similar to OSRS for deeper authenticity.
+4. UI & UX Upgrades
+Tooltips & Hover Info: Show XP needed for next level, enemy stats, item details.
+Progress Bars & Animations: Smooth transitions, color-coded bars, small animations to highlight achievements or level-ups.
+Theming: Provide a consistent dark/light mode with theme variables (Tailwind or CSS variables).
+Responsive Layout: Ensure panels adapt to mobile and tablet screens.
+5. Performance Optimization
+State Management: Avoid excessive re-renders (memoize components, consider global context correctly).
+Data Fetching: Cache or optimize backend requests for frequently updated data.
+Efficient Idle Loop: Potentially reduce frequent intervals in favor of timestamp-based calculations (client or server).
+Phase 3: Functionality & Polishing
+1. Offline Progression
+Idle Gains: On returning to the game, calculate the elapsed time and apply skill XP or resource gains.
+Server-Side: Store last active time and compute differences on load.
+UX: Show a summary (“While you were away, you gained 320 XP in Fishing!”).
+2. Bank & Extended Inventory
+Tabbed Bank: Sorting, searching, categorizing items (optional for advanced user experience).
+Storage Limits: Introduce item capacity, upgradeable storage (like OSRS bank expansions) for deeper resource management.
+3. Advanced Shop & Economy
+Dynamic Pricing (optional advanced feature): If items are oversold, the buy price could rise, etc.
+Additional Vendors: Each vendor specialized in certain item categories.
+4. Advanced UI/UX
+Notifications System: Toasts or small pop-ups on level-ups, rare loot drops.
+Responsive Layout & Mobile: Ensure a good experience across devices.
+Accessibility: Proper ARIA labels, keyboard navigation, color contrast checks.
+5. Testing & Polishing
+Automated Tests: Unit tests for domain logic, integration tests for game loops, end-to-end tests for major flows.
+User Feedback: Collect feedback to fix pain points or unclear mechanics.
+Refinement: Tweak XP rates, balancing skill progression, ensuring it’s neither too fast nor too grindy.
+Phase 4: Long-Term Features & Monetization (Optional)
+Account System: Integrate user authentication, persistent cloud saves.
+Complex Dungeons: Multi-stage encounters, boss fights, scaled loot.
+Clans/Groups: Allow cooperative or competitive events.
+Microtransactions: Cosmetic or QoL items (if desired, carefully balanced to avoid pay-to-win).
+Live Release & Updates: Weekly or monthly patches adding new content (quests, mini-games, more skills).
+Key Optimization & UI/UX Takeaways
+Leverage Timestamps: Instead of constantly ticking every second, calculate elapsed time from last update to reduce CPU usage.
+One-Page Layout: Keep all essential panels (Skills, Combat, Inventory) easily visible or toggled.
+Clear Progress Tracking: Make sure players see real-time XP bars, action progress, and next-level XP requirements.
+Immediate Feedback: Show subtle animations or color changes on level-ups, item acquisition, or defeating enemies.
+Consistent Design System: Reuse components, maintain consistent spacing and color variables, and keep accessibility in mind.
+Conclusion
+This plan balances core features (skills, combat, inventory, shop), optimization (idle loops, modular architecture), functionality (distinct skill flows, crafting, mastery, advanced combat), and a stellar UI/UX (intuitive design, tooltips, animations, theming). By iteratively building and refining each phase, you’ll produce an idle game reminiscent of Old School Runescape and Melvor Idle, with rewarding progression systems and a polished front-end user experience.

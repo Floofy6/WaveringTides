@@ -1,0 +1,77 @@
+melvor-replica/
+├── backend/
+│   ├── .env.example                     # Environment variables template
+│   ├── package.json                     # Backend dependencies
+│   ├── tsconfig.json                    # TypeScript configuration
+│   ├── src/
+│   │   ├── domain/
+│   │   │   ├── aggregates/
+│   │   │   │   ├── player/
+│   │   │   │   │   ├── Player.ts        # Player entity with mastery integration
+│   │   │   │   │   ├── Skill.ts         # Updated with mastery functionality
+│   │   │   │   │   ├── Inventory.ts     # Inventory management
+│   │   │   │   │   └── Equipment.ts     # Equipment management
+│   │   │   │   └── enemy/
+│   │   │   │       └── Enemy.ts         # Enemy entity
+│   │   │   ├── entities/
+│   │   │   │   └── Item.ts              # Item entity
+│   │   │   ├── valueObjects/
+│   │   │   │   ├── Level.ts             # Level value object
+│   │   │   │   ├── Experience.ts        # Experience value object
+│   │   │   │   └── GoldAmount.ts        # GoldAmount value object
+│   │   │   └── repositories/
+│   │   │       ├── PlayerRepository.ts  # Player repository interface
+│   │   │       ├── ItemRepository.ts    # Item repository interface
+│   │   │       └── EnemyRepository.ts   # Enemy repository interface
+│   │   ├── application/
+│   │   │   ├── services/
+│   │   │   │   ├── GameService.ts       # Game loop and state updates
+│   │   │   │   ├── PlayerService.ts     # Player actions
+│   │   │   │   ├── SkillService.ts      # Updated with mastery mechanics
+│   │   │   │   ├── CombatService.ts     # Combat calculations
+│   │   │   │   ├── CraftingService.ts   # Item crafting
+│   │   │   │   └── ShopService.ts       # Shop transactions
+│   │   ├── infrastructure/
+│   │   │   ├── persistence/
+│   │   │   │   ├── RepositoryFactory.ts # Factory to switch between storage methods
+│   │   │   │   ├── inMemory/
+│   │   │   │   │   ├── InMemoryPlayerRepository.ts
+│   │   │   │   │   ├── InMemoryItemRepository.ts
+│   │   │   │   │   ├── InMemoryEnemyRepository.ts
+│   │   │   │   │   └── InMemoryShopRepository.ts
+│   │   │   │   └── mongo/               # New MongoDB integration
+│   │   │   │       ├── connection.ts    # MongoDB connection utility
+│   │   │   │       ├── schemas.ts       # Mongoose schemas
+│   │   │   │       ├── MongoPlayerRepository.ts
+│   │   │   │       ├── MongoItemRepository.ts
+│   │   │   │       └── MongoEnemyRepository.ts
+│   │   ├── presentation/
+│   │   │   ├── controllers/
+│   │   │   │   └── PlayerController.ts  # API controller
+│   │   │   ├── routes/
+│   │   │   │   └── routes.ts            # Updated for MongoDB connection
+│   │   │   └── app.ts                   # Express app with env setup
+│   │   └── shared/
+│   │       ├── types.ts                 # Updated with Mastery interfaces
+│   │       └── constants.ts             # Game constants
+└── frontend/
+    ├── package.json                     # Frontend dependencies
+    ├── tsconfig.json                    # TypeScript configuration
+    ├── src/
+    │   ├── components/
+    │   │   ├── SkillList.tsx            # Updated with mastery display
+    │   │   ├── MasteryPanel.tsx         # New component for mastery display
+    │   │   ├── Inventory.tsx            # Inventory UI
+    │   │   ├── CombatPanel.tsx          # Combat interface
+    │   │   ├── Shop.tsx                 # Shop interface
+    │   │   └── Equipment.tsx            # Equipment interface
+    │   ├── services/
+    │   │   └── api.ts                   # API client
+    │   ├── types/
+    │   │   └── index.ts                 # Updated with Mastery type
+    │   ├── constants.ts                 # Frontend constants
+    │   ├── App.tsx                      # Main application
+    │   ├── App.css                      # Updated with mastery styles
+    │   ├── index.tsx                    # Entry point
+    │   └── index.css                    # Global styles
+    └── README.md                        # Updated with mastery & MongoDB info
